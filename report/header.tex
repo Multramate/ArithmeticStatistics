@@ -1,0 +1,300 @@
+\documentclass{report}
+
+% Packages
+
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage[UKenglish]{babel}
+\usepackage[backend=biber,giveninits=true,maxalphanames=5,maxnames=5,style=alphabetic]{biblatex}
+\usepackage{commath}
+\usepackage{enumitem}
+\usepackage{etoolbox}
+\usepackage{fancyhdr}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{mathtools}
+\usepackage{stmaryrd}
+\usepackage{tikz-cd}
+\usepackage{csquotes}
+
+% Formatting
+
+\DeclareFontFamily{U}{wncyr}{}
+\DeclareFontShape{U}{wncyr}{m}{n}{<->wncyr10}{}
+\DeclareSymbolFont{cyr}{U}{wncyr}{m}{n}
+\DeclareMathSymbol{\SHA}{\mathord}{cyr}{"58}
+\delimitershortfall5pt
+\newcommand\newoperator[1]{\ifcsdef{#1}{\cslet{#1}{\relax}}{}\csdef{#1}{\operatorname{#1}}}
+\newtheoremstyle{leftdefinition}{\topsep}{\topsep}{}{}{}{\bfseries.}{0.6em}{\llap{\ifstrempty{#2}{}{(#2) \quad}}{\bfseries#1}\ifstrempty{#3}{}{ (#3)}}
+\newtheoremstyle{leftplain}{\topsep}{\topsep}{\itshape}{}{}{\bfseries.}{0.5em}{\llap{\ifstrempty{#2}{}{(#2) \quad}}{\bfseries#1}\ifstrempty{#3}{}{ (#3)}}
+\newtheorem{n}{}[section]
+\patchcmd{\abstract}{\titlepage}{}{}{}
+\patchcmd{\endabstract}{\endtitlepage}{}{}{}
+
+% Environments
+
+\theoremstyle{leftplain}
+\newtheorem{conjecture}[n]{Conjecture}
+\newtheorem{corollary}[n]{Corollary}
+\newtheorem{lemma}[n]{Lemma}
+\newtheorem{proposition}[n]{Proposition}
+\newtheorem{theorem}[n]{Theorem}
+
+\theoremstyle{leftdefinition}
+\newtheorem*{definition}{Definition}
+\newtheorem*{example}{Example}
+\newtheorem*{remark}{Remark}
+
+% Blackboard
+
+\renewcommand{\AA}{\mathbb{A}} % Blackboard A
+\newcommand{\BB}{\mathbb{B}}   % Blackboard B
+\newcommand{\CC}{\mathbb{C}}   % Blackboard C
+\newcommand{\DD}{\mathbb{D}}   % Blackboard D
+\newcommand{\EE}{\mathbb{E}}   % Blackboard E
+\newcommand{\FF}{\mathbb{F}}   % Blackboard F
+\newcommand{\GG}{\mathbb{G}}   % Blackboard G
+\newcommand{\HH}{\mathbb{H}}   % Blackboard H
+\newcommand{\II}{\mathbb{I}}   % Blackboard I
+\newcommand{\JJ}{\mathbb{J}}   % Blackboard J
+\newcommand{\KK}{\mathbb{K}}   % Blackboard K
+\newcommand{\LL}{\mathbb{L}}   % Blackboard L
+\newcommand{\MM}{\mathbb{M}}   % Blackboard M
+\newcommand{\NN}{\mathbb{N}}   % Blackboard N
+\newcommand{\OO}{\mathbb{O}}   % Blackboard O
+\newcommand{\PP}{\mathbb{P}}   % Blackboard P
+\newcommand{\QQ}{\mathbb{Q}}   % Blackboard Q
+\newcommand{\RR}{\mathbb{R}}   % Blackboard R
+\renewcommand{\SS}{\mathbb{S}} % Blackboard S
+\newcommand{\TT}{\mathbb{T}}   % Blackboard T
+\newcommand{\UU}{\mathbb{U}}   % Blackboard U
+\newcommand{\VV}{\mathbb{V}}   % Blackboard V
+\newcommand{\WW}{\mathbb{W}}   % Blackboard W
+\newcommand{\XX}{\mathbb{X}}   % Blackboard X
+\newcommand{\YY}{\mathbb{Y}}   % Blackboard Y
+\newcommand{\ZZ}{\mathbb{Z}}   % Blackboard Z
+
+% Brackets
+
+\newcommand{\br}{\del}                              % Brackets
+\newcommand{\abr}[1]{\left\langle #1 \right\rangle} % Angle brackets
+\newcommand{\fbr}[1]{\left\lfloor #1 \right\rfloor} % Floor brackets
+\newcommand{\lbr}[1]{\left\lceil #1 \right\rceil}   % Ceiling brackets
+\newcommand{\st}{\ \middle| \ }                     % Such that
+
+% Calligraphic
+
+\newcommand{\AAA}{\mathcal{A}} % Calligraphic A
+\newcommand{\BBB}{\mathcal{B}} % Calligraphic B
+\newcommand{\CCC}{\mathcal{C}} % Calligraphic C
+\newcommand{\DDD}{\mathcal{D}} % Calligraphic D
+\newcommand{\EEE}{\mathcal{E}} % Calligraphic E
+\newcommand{\FFF}{\mathcal{F}} % Calligraphic F
+\newcommand{\GGG}{\mathcal{G}} % Calligraphic G
+\newcommand{\HHH}{\mathcal{H}} % Calligraphic H
+\newcommand{\III}{\mathcal{I}} % Calligraphic I
+\newcommand{\JJJ}{\mathcal{J}} % Calligraphic J
+\newcommand{\KKK}{\mathcal{K}} % Calligraphic K
+\newcommand{\LLL}{\mathcal{L}} % Calligraphic L
+\newcommand{\MMM}{\mathcal{M}} % Calligraphic M
+\newcommand{\NNN}{\mathcal{N}} % Calligraphic N
+\newcommand{\OOO}{\mathcal{O}} % Calligraphic O
+\newcommand{\PPP}{\mathcal{P}} % Calligraphic P
+\newcommand{\QQQ}{\mathcal{Q}} % Calligraphic Q
+\newcommand{\RRR}{\mathcal{R}} % Calligraphic R
+\newcommand{\SSS}{\mathcal{S}} % Calligraphic S
+\newcommand{\TTT}{\mathcal{T}} % Calligraphic T
+\newcommand{\UUU}{\mathcal{U}} % Calligraphic U
+\newcommand{\VVV}{\mathcal{V}} % Calligraphic V
+\newcommand{\WWW}{\mathcal{W}} % Calligraphic W
+\newcommand{\XXX}{\mathcal{X}} % Calligraphic X
+\newcommand{\YYY}{\mathcal{Y}} % Calligraphic Y
+\newcommand{\ZZZ}{\mathcal{Z}} % Calligraphic Z
+
+% Fraktur
+
+\newcommand{\aaa}{\mathfrak{a}}   % Fraktur a
+\newcommand{\bbb}{\mathfrak{b}}   % Fraktur b
+\newcommand{\ccc}{\mathfrak{c}}   % Fraktur c
+\newcommand{\ddd}{\mathfrak{d}}   % Fraktur d
+\newcommand{\eee}{\mathfrak{e}}   % Fraktur e
+\newcommand{\fff}{\mathfrak{f}}   % Fraktur f
+\renewcommand{\ggg}{\mathfrak{g}} % Fraktur g
+\newcommand{\hhh}{\mathfrak{h}}   % Fraktur h
+\newcommand{\iii}{\mathfrak{i}}   % Fraktur i
+\newcommand{\jjj}{\mathfrak{j}}   % Fraktur j
+\newcommand{\kkk}{\mathfrak{k}}   % Fraktur k
+\renewcommand{\lll}{\mathfrak{l}} % Fraktur l
+\newcommand{\mmm}{\mathfrak{m}}   % Fraktur m
+\newcommand{\nnn}{\mathfrak{n}}   % Fraktur n
+\newcommand{\ooo}{\mathfrak{o}}   % Fraktur o
+\newcommand{\ppp}{\mathfrak{p}}   % Fraktur p
+\newcommand{\qqq}{\mathfrak{q}}   % Fraktur q
+\newcommand{\rrr}{\mathfrak{r}}   % Fraktur r
+\newcommand{\sss}{\mathfrak{s}}   % Fraktur s
+\newcommand{\ttt}{\mathfrak{t}}   % Fraktur t
+\newcommand{\uuu}{\mathfrak{u}}   % Fraktur u
+\newcommand{\vvv}{\mathfrak{v}}   % Fraktur v
+\newcommand{\www}{\mathfrak{w}}   % Fraktur w
+\newcommand{\xxx}{\mathfrak{x}}   % Fraktur x
+\newcommand{\yyy}{\mathfrak{y}}   % Fraktur y
+\newcommand{\zzz}{\mathfrak{z}}   % Fraktur z
+
+% Maps
+
+\newcommand{\bijection}[4]{  % Bijection
+  \begin{array}{rcl}
+    #1 & \leftrightsquigarrow & #2 \\
+    #3 & \longmapsto          & #4
+  \end{array}
+}
+\newcommand{\function}[5][]{ % Function
+  \ifstrempty{#1}{
+    \begin{array}{rcl}
+      #2 & \longrightarrow & #3 \\
+      #4 & \longmapsto     & #5
+    \end{array}
+  }{
+    \begin{array}{ccrcl}
+      #1 & : & #2 & \longrightarrow & #3 \\
+         &   & #4 & \longmapsto     & #5
+    \end{array}
+  }
+}
+
+% Matrices
+
+\newcommand{\twobyone}[2]{      % Two by one matrix
+  \begin{pmatrix}
+    #1 \\
+    #2
+  \end{pmatrix}
+}
+\newcommand{\twobytwo}[4]{      % Two by two matrix
+  \begin{pmatrix}
+    #1 & #2 \\
+    #3 & #4
+  \end{pmatrix}
+}
+\newcommand{\twobytwosmall}[4]{ % Two by two small matrix
+  \begin{psmallmatrix}
+    #1 & #2 \\
+    #3 & #4
+  \end{psmallmatrix}
+}
+
+% Operators
+
+\newcommand{\En}[2][]{\ifstrempty{#1}{E\br{#2} / n}{E\br{#2} / #1}}
+\newcommand{\HE}[2][]{\ifstrempty{#1}{\H^1\br{#2, E}}{\H^1\br{#2, E\sbr{#1}}}}
+\newcommand{\rkE}[1][]{\ifstrempty{#1}{\operatorname{rk}\br{E / K}}{\operatorname{rk}\br{E / #1}}}
+\newcommand{\Sel}[1][]{\SSS_{#1}\br{K, E}}
+\newcommand{\Sha}[1][]{\ifstrempty{#1}{\SHA\br{K, E}}{\SHA^1\br{#1}}}
+\newcommand{\torsE}{\operatorname{tors}\br{E / K}}
+
+\newcommand{\AG}[1]{\operatorname{Gal}\br{\overline{#1} / #1}}
+\newcommand{\BS}[1]{\operatorname{BS}_n\br{E / #1}}
+\newcommand{\Div}[1][]{\operatorname{Div}_{#1}\br{E / \overline{F}}}
+\newcommand{\Pic}{\operatorname{Pic}_0\br{E / \overline{F}}}
+\newcommand{\PV}{\prod_{v \in \VVV_K}}
+\newcommand{\Twist}[2]{\operatorname{Twist}\br{#1 / #2}}
+\newcommand{\WC}[2][]{\ifstrempty{#1}{\operatorname{WC}\br{E / #2}}{\operatorname{WC}\br{E\sbr{#1} / #2}}}
+
+\newoperator{Aut}   % Automorphism
+\newoperator{Br}    % Brauer
+\newoperator{coker} % Cokernel
+\newoperator{Ext}   % Extension
+\newoperator{Gal}   % Galois group
+\newoperator{GL}    % General linear
+\newoperator{Hom}   % Homomorphism
+\newoperator{im}    % Image
+\newoperator{inf}   % Inflation
+\newoperator{inv}   % Invariant
+\newoperator{ker}   % Kernel
+\newoperator{LG}    % Lagrangian Grassmannian
+\newoperator{Mat}   % Matrix
+\newoperator{Ob}    % Obstruction
+\newoperator{ord}   % Order
+\newoperator{PGL}   % Projective general linear
+\newoperator{Prob}  % Probability
+\newoperator{rk}    % Rank
+\newoperator{res}   % Restriction
+\newoperator{SL}    % Special linear
+\newoperator{tors}  % Torsion
+
+% Roman
+
+\newcommand{\A}{\mathrm{A}}   % Roman A
+\newcommand{\B}{\mathrm{B}}   % Roman B
+\newcommand{\C}{\mathrm{C}}   % Roman C
+\newcommand{\D}{\mathrm{D}}   % Roman D
+\newcommand{\E}{\mathrm{E}}   % Roman E
+\newcommand{\F}{\mathrm{F}}   % Roman F
+\newcommand{\G}{\mathrm{G}}   % Roman G
+\renewcommand{\H}{\mathrm{H}} % Roman H
+\newcommand{\I}{\mathrm{I}}   % Roman I
+\newcommand{\J}{\mathrm{J}}   % Roman J
+\newcommand{\K}{\mathrm{K}}   % Roman K
+\renewcommand{\L}{\mathrm{L}} % Roman L
+\newcommand{\M}{\mathrm{M}}   % Roman M
+\newcommand{\N}{\mathrm{N}}   % Roman N
+\renewcommand{\O}{\mathrm{O}} % Roman O
+\renewcommand{\P}{\mathrm{P}} % Roman P
+\newcommand{\Q}{\mathrm{Q}}   % Roman Q
+\newcommand{\R}{\mathrm{R}}   % Roman R
+\renewcommand{\S}{\mathrm{S}} % Roman S
+\newcommand{\T}{\mathrm{T}}   % Roman T
+\newcommand{\U}{\mathrm{U}}   % Roman U
+\newcommand{\V}{\mathrm{V}}   % Roman V
+\newcommand{\W}{\mathrm{W}}   % Roman W
+\newcommand{\X}{\mathrm{X}}   % Roman X
+\newcommand{\Y}{\mathrm{Y}}   % Roman Y
+\newcommand{\Z}{\mathrm{Z}}   % Roman Z
+
+\renewcommand{\a}{\mathrm{a}} % Roman a
+\renewcommand{\b}{\mathrm{b}} % Roman b
+\renewcommand{\c}{\mathrm{c}} % Roman c
+\renewcommand{\d}{\mathrm{d}} % Roman d
+\newcommand{\e}{\mathrm{e}}   % Roman e
+\newcommand{\f}{\mathrm{f}}   % Roman f
+\newcommand{\g}{\mathrm{g}}   % Roman g
+\newcommand{\h}{\mathrm{h}}   % Roman h
+\renewcommand{\i}{\mathrm{i}} % Roman i
+\renewcommand{\j}{\mathrm{j}} % Roman j
+\renewcommand{\k}{\mathrm{k}} % Roman k
+\renewcommand{\l}{\mathrm{l}} % Roman l
+\newcommand{\m}{\mathrm{m}}   % Roman m
+\renewcommand{\n}{\mathrm{n}} % Roman n
+\renewcommand{\o}{\mathrm{o}} % Roman o
+\newcommand{\p}{\mathrm{p}}   % Roman p
+\newcommand{\q}{\mathrm{q}}   % Roman q
+\renewcommand{\r}{\mathrm{r}} % Roman r
+\newcommand{\s}{\mathrm{s}}   % Roman s
+\renewcommand{\t}{\mathrm{t}} % Roman t
+\renewcommand{\u}{\mathrm{u}} % Roman u
+\renewcommand{\v}{\mathrm{v}} % Roman v
+\newcommand{\w}{\mathrm{w}}   % Roman w
+\newcommand{\x}{\mathrm{x}}   % Roman x
+\newcommand{\y}{\mathrm{y}}   % Roman y
+\newcommand{\z}{\mathrm{z}}   % Roman z
+
+% Tikz
+
+\tikzset{
+  arrow symbol/.style={"#1" description, allow upside down, auto=false, draw=none, sloped},
+  subset/.style={arrow symbol={\subset}},
+  cong/.style={arrow symbol={\cong}}
+}
+
+% Fancy header
+
+\pagestyle{fancy}
+\lhead{\nouppercase{\leftmark}}
+\rhead{\nouppercase{\rightmark}}
+
+% Bibliography
+
+\addbibresource{bibliography.bib}

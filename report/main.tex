@@ -1,0 +1,1706 @@
+\def\imperial{\includegraphics[width=0.3\textwidth]{imperial.png}}
+\def\project{Advanced Research Project in Mathematics}
+\def\department{Department of Computing}
+\def\report{Final Report}
+\def\title{Arithmetic Statistics for Elliptic Curves}
+\def\subtitle{Modelling the Selmer group, the Tate-Shafarevich group, \\ and the Mordell-Weil rank of elliptic curves over number fields}
+\def\author{David Kurniadi Angdinata}
+\def\cid{01201743}
+\def\supervisor{Professor Toby Gee}
+\def\secondmarker{Professor Alexei Skorobogatov}
+\def\date{June 2020}
+\def\titletext{A project submitted in partial fulfillment of the requirement for the award of MEng Mathematics and Computer Science (Pure Mathematics and Computational Logic) degree of Imperial College London}
+\def\abstracttext{The Mordell-Weil theorem states that any elliptic curve $ E $ defined over a number field $ K $ is a finitely generated abelian group, so that $ E\br{K} $ is isomorphic to a direct product of a finite torsion subgroup and a free abelian group of finite rank. Over the rationals, while the torsion subgroup is fully understood from a result by Mazur, the Mordell-Weil rank is much less understood. For instance, it remains an open question if it is bounded above, with a historical belief that it is not, due to much empirical evidence.
+
+A recent probabilistic model proposed by Poonen et al provides theoretical evidence to refute this claim, namely that all but finitely many rational elliptic curves have rank at most $ 21 $. Their proposed heuristic is based on modelling Tate-Shafarevich groups using random alternating matrices, and has its grounds in a theorem that a $ p^e $-Selmer group is almost always the intersection of two Lagrangian direct summands of a metabolic quadratic $ \ZZ / p^e $-module of infinite rank, a consequence of standard arithmetic duality theorems.
+
+This project aims to serve as an introduction to the style of arguments in arithmetic statistics by providing a full proof of this result, as well as verifying desired properties of a heuristic that models this result. As a consequence, important predictions on Selmer groups, Tate-Shafarevich groups, and Mordell-Weil ranks can be made, including the conjecture that $ n $-Selmer groups have average size equal to the sum of divisors of $ n $, as well as the folklore conjecture that there are finitely many rational elliptic curves of rank greater than $ 21 $.}
+\def\acknowledgmentstext{I would like to express my sincere gratitude to everyone who have supported me academically and socially during the two months of report writing, as well as throughout my four years in Imperial.
+
+In particular, I would like to thank Professor Johannes Nicaise for introducing me to the arithmetic of elliptic curves in a summer research project two years ago. His willingness to supervise me and the few conversations we had were very encouraging to my early mathematical career, and I have since delved deeper into the area and developed a keen research interest.
+
+Moreover, I would like to thank Dr David Helm for introducing me to the machinery of Galois cohomology as applied to class field theory in a summer research project last year. Despite being busy, he was willing to meet me in the afternoons every week, and we engaged in many enthusiastic conversations on a broad range of number-theoretic ideas, albeit only at a high-level. His insights and viewpoints have since solidified my thoughts and improved my mathematical maturity.
+
+Furthermore, I would like to thank my current project supervisors Professor Toby Gee and Professor Alexei Skorobogatov for their support and guidance throughout the duration of the research project. I had several doubts about the scope of the material early on, and some ideas I could not follow, but they clarified all of them in great detail through office hours and email exchanges.
+
+Additionally, I would like to thank Mr Stephen Diehl and Adjoint UK Ltd for providing me with a summer internship opportunity last year on pairing-based elliptic curve cryptography. It was a very enjoyable experience working with number theory in Haskell, which helped me appreciate the existence of applications of pure mathematics outside of academia.
+
+Last but not least, I would also like to thank all of my colleagues whom I have had intellectual discussions with, including Christopher Burns, Alberto Centelles, Jiang Wei, and Wu Peiran, who have all helped me one way or another in this project. I am especially grateful to Wu Peiran who did a thorough proofreading of my report, even after the submission deadline.}
+
+\input{header}
+
+\begin{document}
+
+\input{title}
+
+\pagebreak
+
+\chapter{Introduction}
+
+\section{Motivational background}
+
+In the field of number theory, there are many important open problems that withstood the minds of countless number theorists over decades, a strong contender being the elusive Riemann hypothesis in analytic number theory. While a complete answer to these questions may seem out of reach at present, they remain conjectures widely believed by working mathematicians due to significant theoretical and numerical evidence.
+
+A fascinating example of theoretical evidence is the probabilistic model offered by Cohen and Lenstra in their seminal paper on heuristics on class groups of number fields \cite{CL84}. They introduced a plausible heuristic on the distribution of ideal class groups, claiming and justifying that their asymptotic behaviours mimick those of generic finite abelian groups weighted inversely by the size of their automorphism groups, which later turned out to match numerical results very well. Their paper was later followed on by Friedman and Washington who reinterpreted it on random matrices \cite{FW89}, and their ideas have since become a powerful source of predictions for number fields, which kickstarted the field of arithmetic statistics.
+
+One route that arithmetic statistics took was in the direction of elliptic curves, a highly non-trivial theory with an ocean of deep unsolved problems. This was first observed by Delaunay, where he modelled Tate-Shafarevich groups of elliptic curves based on the Cohen-Lenstra heuristics \cite{Del01}. This was in turn motivated by the strong analogy between number fields and elliptic curves, where the group of units corresponds to the rational points and the ideal class group corresponds to the Tate-Shafarevich group \cite{Del07}.
+
+Two famous conjectures of elliptic curves proposed in the late twentieth century are often known as the \textbf{rank distribution conjecture} and \textbf{rank boundedness conjecture}. The first of these claims that half of all elliptic curves have Mordell-Weil rank zero and the remaining half have Mordell-Weil rank one, while higher Mordell-Weil ranks constitute zero percent of all elliptic curves over number fields, implying that a suitably-defined average rank would be $ \tfrac{1}{2} $. Currently, the best results by Bhargava et al merely show that the average rank of elliptic curves over $ \QQ $ is strictly less than one, and that both rank zero and rank one cases comprise non-zero densities across all elliptic curves over $ \QQ $ \cite{BS15a, BS15b}.
+
+The second of these asks whether there is an upper bound to the Mordell-Weil rank of elliptic curves over number fields \cite[Conjecture 10.1]{Sil09}. Over the past few decades, the general consensus amongst the experts has flip-flopped at least twice \cite[Section 3]{PPVW19}. Those in favour of unboundedness argue that this phenomenon provably occurs in other global fields, and that the proven lower bound for this upper bound increases every few years. For instance, Elkies discovered an elliptic curve over $ \QQ $ with Mordell-Weil rank at least $ 28 $, and very recently one with Mordell-Weil rank exactly $ 20 $ \cite{EK20}.
+
+On the other hand, a recent series of papers by Poonen et al suggested otherwise, by providing a justified heuristic inspired by ideas from arithmetic statistics \cite{Poo17}. They modelled the asymptotic behaviour of Mordell-Weil ranks through analysing the distribution of Tate-Shafarevich groups modelled by random alternating matrices \cite{PPVW19}, while providing sufficient theoretical evidence through proven theorems of Selmer groups \cite{BKLPR15, PR12}. All of these groups are linked in a fundamental short exact sequence, and a large portion of the results in their papers are attempts to justify the plausibility of a model for the sequence. One of their final predictions is the surprising result that there are only finitely many isomorphism classes of elliptic curves over $ \QQ $ with Mordell-Weil rank greater than $ 21 $.
+
+\pagebreak
+
+Undeniably, a thorough understanding of the structure of the Selmer group goes a long way towards proving results for the Mordell-Weil rank. This is highlighted not only in the papers by Poonen et al, but also in the papers by Bhargava et al, where they explicitly computed the average sizes of certain Selmer groups to deduce asymptotic results of Mordell-Weil ranks \cite{BS13a, BS13b}, and made the following conjecture.
+
+\begin{conjecture}[{\cite[Conjecture 4]{BS13a}}]
+\label{con:main}
+Let $ E \in \EEE\br{K} $ be a elliptic curve chosen uniformly at random. Then
+$$ \EE\sbr{\#\Sel[n]} = \sigma_1\br{n}, \qquad n \in \NN^+, $$
+where $ \sigma_1 : \NN^+ \to \NN $ is the sum of divisors function. \footnote{The notation used here will be fully clarified in the following chapter.}
+\end{conjecture}
+
+In their series of papers, Bhargava et al verified Conjecture \ref{con:main} for $ n = 2, 3, 4, 5 $, and these were enough to deduce powerful partial results for the rank distribution conjecture. While the general claim remains a consensual open problem, the model for the Selmer group in the papers by Poonen et al does indeed satisfy Conjecture \ref{con:main}, further supporting both the conjecture and the validity of the model. Curiously, the analogous result seems to be true for elliptic curves over function fields of odd characteristic, albeit under a slightly different notion of heights than those for number fields \cite[Theorem 1.2]{Lan20}.
+
+\section{Report structure}
+
+The aim of this report is to provide detailed proofs to two main results of Selmer groups and its model, labelled in the following chapters as Theorem \ref{thm:main1} and Theorem \ref{thm:main2}, which combines to yield a hypothetical affirmative to Conjecture \ref{con:main}. The overarching idea follows the arguments in the series of papers by Poonen et al \cite{Poo17, PPVW19, BKLPR15, PR12}, but in many sections, more elementary proofs are provided whenever possible, and these are often a combination of various notions taken from other referenced sources.
+
+While the first chapter is purely introductory, the second chapter will begin by providing any additional background required to bridge the gap between the papers and undergraduate mathematics, so as to make the report accessible to a typical undergraduate. This includes a short introduction to group and Galois cohomology, culminating in the statement of standard arithmetic duality theorems, which will be a recurring flavour in the rest of the report. Standard facts on elliptic curves will also be laid out succinctly, and the full definition of the Selmer and Tate-Shafarevich groups will be provided, along with an interpretation in terms of twists and torsors. The facts in this chapter will be freely used in other chapters without reference.
+
+The third core chapter first provides basic definitions of quadratic modules, to allow for the statement of Theorem \ref{thm:main1} and Theorem \ref{thm:main2}, while the remaining sections aim to provide a detailed proof of these theorems. Many interesting remarks will be presented without proofs alongside the overall argument, but they are unnecessary in the grand scheme of the proof and can be largely ignored. However, the final chapter will conclude the report by providing several consequences of the model, and will freely use these remarks.
+
+My primary contribution is a coherent organisation and rephrasal of the arguments spread across several papers into a stand-alone report. I have replaced any proofs deemed relatively advanced, especially those with scheme-theoretic arguments, with more elementary arguments, and have filled in a lot of the details omitted by the original authors. I have also fixed a few minor sign issues and special cases that were disregarded by the original authors, and adapted an external proof to a conjecture in the original paper.
+
+I have also attempted to maintain a set of consistent conventions and notation based on the standard Bourbaki notation. For instance, the variable $ F $ will always denote a field of characteristic zero, while $ E $ will always denote an elliptic curve. All rings are commutative with unity, and all varieties are quasi-projective. Whenever a group variety is defined without the field of definition, it will always be over the algebraic closure. Finally, the Hom and tensor product functors are always over $ \ZZ $ unless explicitly denoted.
+
+As it is not possible to fill in every detail there is, the reader is assumed to be familiar with undergraduate number theory, which includes basic commutative and homological algebra, classical algebraic geometry, and basic algebraic number theory. An acquaintance with the language of category theory, infinite group theory, and infinite Galois theory would be helpful, but they will not be used as freely. All other results will be included in the next chapter, where the proofs are deferred to references provided for the reader's convenience.
+
+\pagebreak
+
+\chapter{Preliminary background}
+
+This chapter aims to establish basic facts and notational conventions, well-known in the fields of algebraic number theory and arithmetic geometry, but typically not covered at the undergraduate level. All of the definitions and results are directly taken from either Silverman's book on elliptic curves \cite{Sil09}, Serre's book on local fields \cite{Ser80}, or Milne's books on arithmetic duality \cite{Mil06} and class field theory \cite{Mil13}, with one result quoted from each of Silverman's advanced book on elliptic curves \cite{Sil94}, Mumford's book on abelian varieties \cite{Mum70}, and Hartshorne's book on algebraic geometry \cite{Har77}. The relevant ideas and constructions are briefly sketched here for the reader's convenience, which will be quoted freely in the report without any additional reference, but the reader is invited to consult any one of the wonderful books above.
+
+\section{Galois cohomology}
+
+Throughout this section, let $ G $ be a group acting on a group $ A $, so $ A $ is called a \textbf{$ G $-group}, or a \textbf{$ G $-module} when $ A $ is abelian. The action of $ G $ will be denoted multiplicatively, while the group operation of $ A $ will be denoted additively even in non-abelian contexts to distinguish it from its group action.
+
+\subsection{Group cohomology}
+
+The most prevalent theory in the modern literature involves the case of $ A $ being abelian, which furnishes the abelian category of $ G $-modules consisting of abelian groups equipped with $ G $-linear group actions and $ G $-equivariant group homomorphisms, and can be identified with the category of modules over the group algebra $ \ZZ\sbr{G} $ \cite[Section VII.1]{Ser80}. Taking $ G $-invariants establishes a functor $ \br{-}^G $ from this category to the category of abelian groups that is canonically isomorphic to the left exact covariant functor $ \Hom_{\ZZ\sbr{G}}\br{\ZZ, -} $, which in turn provides a definition of the $ n $-th \textbf{cohomology group} in terms of the derived functor
+$$ \H^n\br{G, A} \coloneqq \Ext_{\ZZ\sbr{G}}^n\br{\ZZ, A}, \qquad n \in \NN. $$
+
+While this provides a succinct definition, certain computations often require explicit formulations of several low-dimensional cohomology groups. It is easy to see that $ \H^0\br{G, A} \coloneqq A^G $, while
+$$ \H^1\br{G, A} \coloneqq \cbr{\xi : G \to A \st \forall \sigma, \tau \in G, \ \xi\br{\sigma\tau} = \xi\br{\sigma} + \sigma \cdot \xi\br{\tau}} / \sim, $$
+given the equivalence relation
+$$ \xi \sim \xi' \qquad \iff \qquad \exists a \in A, \ \forall \sigma \in G, \ a + \xi\br{\sigma} = \xi'\br{\sigma} + \sigma \cdot a. $$
+Given such a description, it is easy to see that $ \H^1\br{G, A} = \Hom\br{G, A} $ whenever the group action is trivial, and to verify that $ \H^1\br{G, A} $ is $ n $-torsion if $ G $ has finite order $ n \in \NN^+ $ \cite[Exercise B.1]{Sil09}. In the latter scenario, if $ A $ is also finite of order $ m \in \NN^+ $ coprime to $ n $, then $ \H^1\br{G, A} $ is mutually annihilated by $ m $ and by $ n $, so the overall cohomology group must be trivial. Similarly, a description for $ \H^2\br{G, A} $ is
+$$ \H^2\br{G, A} \coloneqq \cbr{\xi : G \times G \to A \st \forall \sigma, \tau, \upsilon \in G, \ \sigma \cdot \xi\br{\tau, \upsilon} + \xi\br{\sigma, \tau\upsilon} = \xi\br{\sigma\tau, \upsilon} + \xi\br{\sigma, \tau}} / \sim, $$
+
+\pagebreak
+
+\noindent
+given the equivalence relation
+$$ \xi \sim \xi' \qquad \iff \qquad \exists \chi : G \to A, \ \forall \sigma, \tau \in G, \ \chi\br{\sigma\tau} + \xi\br{\sigma, \tau} = \xi'\br{\sigma, \tau} + \chi\br{\sigma} + \sigma \cdot \chi\br{\tau}, $$
+while any higher-dimensional cohomology group $ \H^n\br{G, A} $ generally consists of \textbf{$ n $-cocycles} $ \xi : G^n \to A $ satisfying certain crossed conditions modulo certain equivalence relations \cite[Section VII.3]{Ser80}.
+
+It turns out that group cohomology is a universal \textbf{cohomological $ \delta $-functor} \cite[Section VII.2]{Ser80}. In particular, this says that applying the group cohomology functor to a short row-exact diagram of $ G $-modules
+$$
+\begin{tikzcd}
+0 \arrow{r} & A \arrow{r}{\alpha} \arrow{d} & B \arrow{r}{\beta} \arrow{d} & C \arrow{r} \arrow{d} & 0 \\
+0 \arrow{r} & A' \arrow{r} & B' \arrow{r} & C' \arrow{r} & 0
+\end{tikzcd}
+$$
+functorially induces a long row-exact diagram of cohomology groups
+$$
+\begin{tikzcd}[column sep=small]
+0 \arrow{r} & \H^0\br{G, A} \arrow{r} \arrow{d} & \H^0\br{G, B} \arrow{r} \arrow{d} & \H^0\br{G, C} \arrow{r}{\delta_0} \arrow{d} & \H^1\br{G, A} \arrow{r} \arrow{d} & \H^1\br{G, B} \arrow{r} \arrow{d} & \H^1\br{G, C} \arrow{r}{\delta_1} \arrow{d} & \dots \\
+0 \arrow{r} & \H^0\br{G, A'} \arrow{r} & \H^0\br{G, B'} \arrow{r} & \H^0\br{G, C'} \arrow{r} & \H^1\br{G, A'} \arrow{r} & \H^1\br{G, B'} \arrow{r} & \H^1\br{G, C'} \arrow{r} & \dots
+\end{tikzcd},
+$$
+which is not uncharacteristic of many cohomology theories. The \textbf{connecting homomorphisms} $ \delta_0 $ and $ \delta_1 $ in the top row can be explicitly described as follows. Let $ c \in \H^0\br{G, C} = C^G $ be a $ G $-invariant element, and let $ \sigma \in G $ be a group element. By surjectivity of $ \beta $, there is an element $ b \in B $ such that $ c = \beta\br{b} $. It is easy to see that $ \sigma \cdot b - b \in \ker \beta = \im \alpha $, so there is an element $ a_\sigma \in A $ such that $ \sigma \cdot b - b = \alpha\br{a_\sigma} $. Then define
+$$ \delta_0\br{c} \coloneqq \br{\sigma \mapsto a_\sigma}. $$
+Likewise, let $ \xi \in \H^1\br{G, C} $ be a $ 1 $-cocycle, and let $ \sigma, \tau \in G $ be group elements. By surjectivity of $ \beta $, there are elements $ b_\sigma, b_\tau, b_{\sigma\tau} \in B $ such that $ \xi\br{\sigma} = \beta\br{b_\sigma} $, $ \xi\br{\tau} = \beta\br{b_\tau} $, and $ \xi\br{\sigma\tau} = \beta\br{b_{\sigma\tau}} $. It is again easy to see that there is an element $ a_{\sigma, \tau} \in A $ such that $ b_\sigma + \sigma \cdot b_\tau - b_{\sigma\tau} = \alpha\br{a_{\sigma, \tau}} $. Then define
+$$ \delta_1\br{\xi} \coloneqq \br{\br{\sigma, \tau} \mapsto a_{\sigma, \tau}}. $$
+These can be verified, by the definition of cocycles, to be well-defined and independent of the choices of lifts.
+
+The boundary of the well-known \textbf{Hochschild-Lyndon-Serre spectral sequence} establishes a relationship between the cohomology groups defined by $ G $ and a subgroup $ H $, through a left exact \textbf{inflation-restriction exact sequence} of cohomology groups \cite[Proposition VII.5]{Ser80} given by
+$$ 0 \to \H^n\br{G / H, A^H} \xrightarrow{\inf} \H^n\br{G, A} \xrightarrow{\res} \H^n\br{H, A}, \qquad n \in \NN, $$
+provided that $ \H^i\br{H, A} $ is trivial for all $ i = 1, \dots, n - 1 $. Here, the \textbf{restriction map} is a composition $ \res : \H^n\br{G, A} \to \H^n\br{H, A}^{G / H} \to \H^n\br{H, A} $ induced by the inclusion $ H \hookrightarrow G $, while the \textbf{inflation map} is a composition $ \inf : \H^n\br{G / H, A^H} \to \H^n\br{G, A^H} \to \H^n\br{G, A} $ induced by the quotient $ G \twoheadrightarrow G / H $ and the inclusion $ A^H \hookrightarrow A $. When $ G $ is finite, by further defining an analogous \textbf{corestriction map}, it can be shown that the induced restriction map $ \res : \H^n\br{G, A}_p \to \H^n\br{G_p, A} $ on a $ p $-Sylow subgroup $ G_p $ is injective, where $ \H^n\br{G, A}_p $ is the $ p $-primary component of $ \H^n\br{G, A} $ for some prime $ p \in \NN^+ $ \cite[Theorem IX.4]{Ser80}.
+
+Another notable property of group cohomology relates the cohomology groups defined by $ A $ and another $ G $-module $ B $, through the existence of an alternating $ \ZZ $-bilinear \textbf{cup product} \cite[Proposition VIII.5]{Ser80}
+$$ \function[\cup]{\H^n\br{G, A} \times \H^m\br{G, B}}{\H^{n + m}\br{G, A \otimes B}}{\br{\xi, \xi'}}{\xi \cup \xi'}, \qquad n, m \in \NN, $$
+which is universal with respect to certain tensorial properties, and is defined by
+$$ \xi \cup \xi' \coloneqq \br{\br{\sigma_1, \dots, \sigma_n, \tau_1, \dots, \tau_m} \mapsto \xi\br{\sigma_1, \dots, \sigma_n} \otimes \sigma_1 \cdot \dots \cdot \sigma_n \cdot \xi'\br{\tau_1, \dots, \tau_m}}. $$
+This is an analogue of the topological cup product in singular cohomology.
+
+\pagebreak
+
+\subsection{Non-abelian cohomology}
+
+In the scenario where $ A $ is non-abelian, the positive-dimensional cohomologies are not necessarily groups, but merely \textbf{pointed sets} with a distinguished identity, so the notions of kernels and images in short exact sequences still make sense. The explicit descriptions of these pointed sets in terms of cocycles remain unchanged, except to account for non-commutativity of the respective group operations. Applying the \textbf{non-abelian group cohomology} functor to a short exact sequence of $ G $-groups
+$$ 0 \to A \to B \to C \to 0 $$
+still induces a truncated long exact sequence of cohomology pointed sets
+$$ 0 \to \H^0\br{G, A} \to \H^0\br{G, B} \to \H^0\br{G, C} \xrightarrow{\delta_0} \H^1\br{G, A} \to \H^1\br{G, B} \to \H^1\br{G, C} \xrightarrow{\delta_1} \H^2\br{G, A}, $$
+but is exact at $ \H^1\br{G, C} $ if and only if $ A $ injects into the centre of $ B $ \cite[Appendix VII]{Ser80}. The \textbf{connecting maps} $ \delta_0 $ and $ \delta_1 $ are again defined with non-commutativity in mind, but with this additional assumption, conjugation by $ B $ will preserve images of elements of $ A $, such as the previously defined $ \alpha\br{a_\sigma} $ and $ \alpha\br{a_{\sigma, \tau}} $. As with the abelian case, $ \delta $-functoriality holds and cup products are defined exactly the same way.
+
+\subsection{Galois cohomology}
+
+When $ G $ is a \textbf{profinite topological group} of potentially infinite order and $ A $ is a \textbf{topological $ G $-module}, the definitions in the basic theory have to be slightly adjusted so as to behave well with direct and inverse limits. In particular, this says that $ G $ is an inverse limit of discrete finite groups, equipped with a compatible \textbf{profinite topology} with a basis of open sets around the identity consisting of finite index normal subgroups such that $ G $ is compact and Hausdorff, while $ A $ is equipped with a continuous $ G $-action with respect to this topology. The $ n $-th \textbf{profinite cohomology} group is then defined to be the direct limit
+$$ \H^n\br{G, A} \coloneqq \varinjlim_H \H^n\br{G / H, A^H}, \qquad n \in \NN, $$
+taken with respect to open finite index normal subgroups $ H $ of $ G $ and their natural inflation maps. With the restriction that cocycles are necessarily continuous with respect to this topology, all of the properties listed previously continue to hold for profinite cohomology groups by passage to the limit, and coincide in the finite discrete case \cite[Section X.3]{Ser80}, so this shall be an underlying assumption moving forward.
+
+A prominent example in number theory is the case where $ G $ is the Galois group of a possibly infinite Galois extension $ F' $ over a field $ F $, constructed as a profinite topological group equipped with the \textbf{Krull topology}, which acts naturally on the $ F $-rational points of a group variety $ A $ defined over $ F $ to realise it as a topological $ G $-module. The respective $ n $-th profinite \textbf{Galois cohomology} groups are then denoted as
+$$ \H^n\br{F' / F, A} \coloneqq \H^n\br{\Gal\br{F' / F}, A\br{F'}}, \qquad n \in \NN, $$
+the latter of which, by the infinite version of the Galois correspondence, is the direct limit taken with respect to finite Galois extensions of $ F $ that are subfields of $ F' $. In the case of the algebraic closure $ \overline{F} $ of a general field $ F $ of characteristic zero, it is customary to omit the field extension and simply write
+$$ \H^n\br{F, A} \coloneqq \H^n\br{\AG{F}, A\br{\overline{F}}}, \qquad n \in \NN. $$
+Note that with this notation, $ \H^n\br{F, \GL_1} $ refers to the $ n $-th cohomology group of $ \overline{F}^\times $ rather than of $ F^\times $.
+
+Applying non-abelian Galois cohomology to the general linear group varieties $ \GL_n $ and $ \PGL_n $ generalises Noether's formulation of \textbf{Hilbert's theorem 90} \cite[Proposition X.3]{Ser80} to establish the triviality
+$$ \H^1\br{F, \GL_n} = 0, \qquad n \in \NN. $$
+Applying this to the Galois cohomology groups induced by the obvious short exact sequence of groups
+$$ 0 \to \overline{F}^\times \to \GL_n \to \PGL_n \to 0, \qquad n \in \NN, $$
+gives an injection of pointed sets \cite[Proposition X.8]{Ser80}
+$$ \H^1\br{F, \PGL_n} \hookrightarrow \H^2\br{F, \GL_1}, \qquad n \in \NN, $$
+the latter of which is isomorphic to the \textbf{Brauer group} $ \Br F $ \cite[Proposition X.9]{Ser80}, defined as the abelian group of $ F $-central simple algebras modulo $ F $-isomorphisms of their underlying $ F $-division algebras.
+
+\pagebreak
+
+\subsection{Class field theory}
+
+A well-known application of the machinery of Galois cohomology is in the modern treatment of the proofs of local and global class field theory, namely \textbf{Artin's reciprocity law} \cite[Theorems V.3.5 and V.5.3]{Mil13}, \textbf{Takagi's existence theorem} \cite[Theorems V.3.6 and V.5.5]{Mil13}, and their local counterparts \cite[Theorems I.1.1 and I.1.4]{Mil13}. These statements are algebraic in nature, yet their original proofs were through the analysis of $ \L $-series where the local versions were deduced from the global statements, which were historically considered unsatifactory and were later revamped by Chevalley and Tate via the introduction of class formations. While the main statements will be elided here, several relevant consequences will be mentioned.
+
+Let $ K $ be a number field, and let $ \VVV_K $ be the set of all \textbf{places} of $ K $. These are equivalence classes of all non-trivial absolute values on $ K $, which by Ostrowski's theorem consists of the \textbf{non-archimedean places} $ \VVV_K^0 $ induced by $ \ppp $-adic norms and the \textbf{archimedean places} $ \VVV_K^\infty $ induced by real and complex embeddings. Completing $ K $ with respect to a place $ v \in \VVV_K $ yields a locally compact \textbf{local field} $ K_v $, which has a finite residue field in the non-archimedean case, while $ K $ is itself a \textbf{global field} satisfying the product formula \cite[Section II.1]{Ser80}. Each non-archimedean place exhibits a canonical isomorphism \cite[Theorem III.2.1]{Mil13}
+$$ \inv_{K_v} : \Br K_v \xrightarrow{\sim} \QQ / \ZZ, \qquad v \in \VVV_K^0, $$
+while in the archimedean scenario, there are obvious identifications $ \Br \RR = \cbr{\pm 1} $ and $ \Br \CC = 0 $ by any description of the Brauer group, so analogous monomorphisms can be constructed as
+$$ \inv_\RR : \Br \RR \cong \dfrac{1}{2}\ZZ / \ZZ \hookrightarrow \QQ / \ZZ, \qquad \inv_\CC : \Br \CC \cong \ZZ / \ZZ \hookrightarrow \QQ / \ZZ. $$
+These monomorphisms are called \textbf{Hasse invariants}, and are relevant in the construction of class formations. Combining global class field theory and the \textbf{Albert-Brauer-Hasse-Noether theorem} for division algebras yields a short exact \textbf{fundamental sequence of global class field theory} \cite[Theorem VIII.4.2]{Mil13}
+$$ 0 \to \Br K \xrightarrow{\hookrightarrow} \bigoplus_{v \in \VVV_K} \Br K_v \xrightarrow{\sum \inv_{K_v}} \QQ / \ZZ \to 0, $$
+where the latter map arises from summing finitely many local Hasse invariants.
+
+Let $ L $ be a Galois extension of $ K $. The choice of a place $ w \in \VVV_L $ extending a place $ v \in \VVV_K $ uniquely determines an embedding $ K_v \hookrightarrow L_w $, and vice versa \cite[Corollary II.2]{Ser80}. Its Galois group $ \Gal\br{L_w / K_v} $ is then canonically isomorphic to the \textbf{decomposition group}, the stabiliser of $ w $ in $ \Gal\br{L / K} $ acting transitively on the places extending $ v $ \cite[Proposition I.19]{Ser80}. The archimedean scenario is relatively simple, since the decomposition group is either trivial or $ \Gal\br{\CC / \RR} $, the latter of which occurs precisely with ramification where $ K_v \cong \RR $ and $ L_w \cong \CC $. In the non-archimedean case, however, within the decomposition group lies the \textbf{inertia group}, the normal subgroup acting trivially on the residue field of $ K_v $. This is in turn canonically isomorphic to the Galois group $ \Gal\br{L_w / K_v^\u} $, where $ K_v^\u $ denotes the maximal unramified extension of $ K_v $ contained in $ L_w $ \cite[Proposition I.21]{Ser80}, hence furnishing a short exact sequence of Galois groups
+$$ 0 \to \Gal\br{L_w / K_v^\u} \to \Gal\br{L_w / K_v} \to \Gal\br{K_v^\u / K_v} \to 0, $$
+where the first two Galois groups are identified with the inertia and decomposition groups respectively. When $ L $ is unramified over $ K $, the inertia subgroup is trivial, so the decomposition group can be identified with the Galois group of the respective residue fields. This is in turn cyclic with a generator called the \textbf{Frobenius substitution} $ \sigma_w \in \Gal\br{L / K} $ \cite[Section I.8]{Ser80}, which is part of the map defining Artin's reciprocity law. Now an important consequence of global class field theory is \textbf{Chebotarev's density theorem}, which states that for any finite Galois extension $ L $ over $ K $ and any conjugacy class $ C $ of $ \Gal\br{L / K} $, the set of places
+$$ \cbr{v \in \VVV_K^0 \ \text{unramified} \st C = \cbr{\sigma_w \in \Gal\br{L / K} \st w \ \text{extends} \ v}} $$
+has density exactly $ \#C / \sbr{L : K} $ amongst all non-archimedean places, for some well-defined limiting notion of density \cite[Theorem V.3.23]{Mil13}. In particular, this is a positive proportion of places in $ \VVV_K $, so that when the extension is abelian and conjugacy classes are merely singletons, any element of $ \Gal\br{L / K} $ generates a cyclic subgroup isomorphic to infinitely many decomposition groups generated by the Frobenius substitutions.
+
+\pagebreak
+
+\subsection{Arithmetic duality theorems}
+
+This final subsection states several standard yet powerful arithmetic duality theorems on local and global cohomology. For a place $ v \in \VVV_K $, denote the \textbf{Pontryagin dual} and the \textbf{Cartier dual} respectively by
+$$ \br{-}^\star \coloneqq \Hom\br{-, \Br K_v}, \qquad \br{-}^\dagger \coloneqq \Hom\br{-, \overline{K_v}^\times}, $$
+so that, in the non-archimedean case, the Pontryagin dual is the usual definition of $ \br{-}^\star = \Hom\br{-, \QQ / \ZZ} $.
+
+Let $ A $ be a finite $ \AG{K_v} $-module for some place $ v \in \VVV_K $. If $ v $ is non-archimedean, \textbf{Tate's local duality} establishes a canonical non-degenerate perfect pairing via the cup product \cite[Corollary I.2.3]{Mil06}
+$$ \cup : \H^n\br{K_v, A^\dagger} \times \H^{2 - n}\br{K_v, A} \to \Br K_v, \qquad n = 0, 1, 2, $$
+which, in the case $ n = 1 $, induces natural Pontryagin dualities between finite groups
+$$ \H^1\br{K_v, A^\dagger} \cong \H^1\br{K_v, A}^\star, \qquad \H^1\br{K_v, A} \cong \H^1\br{K_v, A^\dagger}^\star. $$
+An essentially identical statement holds when $ v $ is archimedean \cite[Theorem I.2.13(a)]{Mil06}, except that it uses the modified $ n $-th \textbf{Tate cohomology} groups for $ G = \AG{K_v} $, defined by
+$$ \HHH^n\br{G, A} \coloneqq
+\begin{cases}
+\H^n\br{G, A} & n > 1 \\
+A^G / \N_GA & n = 0
+\end{cases},
+\qquad \N_GA \coloneqq \cbr{\sum_{\sigma \in G} \sigma \cdot a \st a \in A}, $$
+whose extension to negative coefficients is relevant in the proof of Artin's reciprocity law. As a convention, since the statement of Tate's local duality, amongst other important dualities, differ in the archimedean case only for $ \H^0\br{K_v, A} $, the zeroth cohomology group in the archimedean case will be abusively denoted
+$$ \H^0\br{K_v, A} \coloneqq \HHH^0\br{\Gal\br{\CC / K_v}, A}, \qquad v \in \VVV_K^\infty, $$
+which shall be the prevailing notation from now on.
+
+For the global duality theorem, let $ A $ be a finite $ \AG{K} $-module. For each place $ v \in \VVV_K $, the inclusion of Galois groups $ \AG{K_v} \hookrightarrow \AG{K} $ induced by the completion $ K \hookrightarrow K_v $ supplies the local restriction maps $ \H^n\br{K, A} \to \H^n\br{K_v, A} $. Define the $ n $-th \textbf{unramified cohomology} group by
+$$ \H_\u^n\br{K_v, A} \coloneqq \H^n\br{K_v^\u / K_v, A^{\Gal\br{\overline{K_v} / K_v^\u}}}, \qquad n \in \NN, $$
+where the inflation-restriction exact sequence applied to $ \AG{K_v} / \Gal\br{\overline{K_v} / K_v^\u} \cong \Gal\br{K_v^\u / K_v} $ yields
+$$ 0 \to \H_\u^n\br{K_v, A} \xrightarrow{\inf} \H^n\br{K_v, A} \xrightarrow{\res} \H^n\br{K_v^\u, A}, \qquad n \in \NN, $$
+provided of course that $ \H^i\br{K_v^\u, A} $ is trivial for all $ i = 1, \dots, n - 1 $. Then define the $ n $-th \textbf{adelic cohomology} group $ \H^n\br{\AA_K, A} $ as the \textbf{restricted product} of $ \br{\H^n\br{K_v, A}}_{v \in \VVV_K} $ with respect to $ \br{\H_\u^n\br{K_v, A}}_{v \in \VVV_K} $, namely
+$$ \H^n\br{\AA_K, A} \coloneqq \cbr{\br{\xi_v}_{v \in \VVV_K} \in \PV\H^n\br{K_v, A} \st \xi_v \in \H_\u^n\br{K_v, A} \ \text{for all but finitely many} \ v \in \VVV_K}, \ \ n \in \NN. $$
+Now the images of the restriction maps $ \H^n\br{K, A} \to \H^n\br{K_v, A} $ land in $ \H_\u^n\br{K_v, A} $ for all but finitely many places $ v \in \VVV_K $ \cite[Lemma I.4.8]{Mil06}, furnishing well-defined embeddings
+$$ \tau^n : \H^n\br{K, A} \to \H^n\br{\AA_K, A}, \qquad n \in \NN, $$
+and analogously $ \tau_\dagger^n : \H^n\br{K, A^\dagger} \to \H^n\br{\AA_K, A^\dagger} $ for the Cartier duals. In the relevant case of $ n = 0, 1, 2 $, Tate's local duality replaces this last group with $ \H^{2 - n}\br{\AA_K, A}^\star $, so that taking Pontryagin duals of the maps $ \tau_\dagger^{2 - n} : \H^{2 - n}\br{K, A^\dagger} \to \H^{2 - n}\br{\AA_K, A^\dagger} $ establishes well-defined maps
+$$ \sigma^n : \H^n\br{\AA_K, A} \to \H^{2 - n}\br{K, A^\dagger}^\star, \qquad n = 0, 1, 2. $$
+
+\pagebreak
+
+\noindent
+Finally, define the \textbf{$ n $-th Tate-Shafarevich group} by
+$$ \SHA^n\br{K, A} \coloneqq \ker \br{\tau^n : \H^n\br{K, A} \to \H^n\br{\AA_K, A}}, \qquad n \in \NN, $$
+a generalisation of the usual Tate-Shafarevich group for elliptic curves, to be defined later. Then \textbf{Tate's global duality} establishes a canonical non-degenerate perfect pairing
+$$ \Sha[K, A] \times \SHA^2\br{K, A^\dagger} \to \QQ / \ZZ, $$
+which, together with its Cartier dual analogue, induce natural Pontryagin dualities between finite groups
+$$ \SHA^2\br{K, A}^\star \xrightarrow{\sim} \Sha[K, A^\dagger], \qquad \Sha[K, A]^\star \xrightarrow{\sim} \SHA^2\br{K, A^\dagger}. $$
+Furthermore, composing these isomorphisms with the obvious inclusions $ \SHA^n\br{K, A^\dagger} \hookrightarrow \H^n\br{K, A^\dagger} $ and their Pontryagin dual maps altogether yield two connecting maps
+$$ \rho : \H^2\br{K, A^\dagger}^\star \to \H^1\br{K, A}, \qquad \rho' : \H^1\br{K, A^\dagger}^\star \to \H^2\br{K, A}, $$
+which fit in the nine-term \textbf{Poitou-Tate exact sequence} \cite[Theorem I.4.10]{Mil06}
+$$
+\begin{tikzcd}
+0 \arrow{r} & \H^0\br{K, A} \arrow{r}{\tau^0} & \H^0\br{\AA_K, A} \arrow{r}{\sigma^0} & \H^2\br{K, A^\dagger}^\star \arrow[in=180, out=0]{dll}[swap]{\rho} & \\
+& \H^1\br{K, A} \arrow{r}{\tau^1} & \H^1\br{\AA_K, A} \arrow{r}{\sigma^1} & \H^1\br{K, A^\dagger}^\star \arrow[in=180, out=0]{dll}[swap]{\rho'} & \\
+& \H^2\br{K, A} \arrow{r}{\tau^2} & \H^2\br{\AA_K, A} \arrow{r}{\sigma^2} & \H^0\br{K, A^\dagger}^\star \arrow{r} & 0
+\end{tikzcd}.
+$$
+The full statement of Tate's global duality encompasses a generalisation of the adelic cohomology groups defined for arbitrary subsets of places, and encodes the topology of these groups as well as the behaviour of higher-dimensional cohomology groups, but the statement as phrased suffices for the purpose of this report.
+
+\pagebreak
+
+\section{Elliptic curves}
+
+A primary object of interest in arithmetic geometry is an \textbf{elliptic curve} defined over a perfect field $ F $, which is defined to be a smooth projective plane algebraic curve $ E $ of genus one over $ \overline{F} $, equipped with a distinguished $ F $-rational \textbf{basepoint} $ \OOO $ and a $ \AG{F} $-action whose invariant subgroup are exactly the $ F $-rational points $ E\br{F} $. Throughout this section, let $ E $ be an elliptic curve defined over a general field $ F $ of characteristic zero, typically a number field $ K $ or any completion $ K_v $ for a place $ v \in \VVV_K $.
+
+\subsection{Elliptic curves}
+
+A characterising feature of elliptic curves amongst other quasi-projective varieties is its peculiar addition law, which realises an elliptic curve as an abelian group with $ \OOO $ as the identity element \cite[Algorithm III.2.3]{Sil09}, making it an \textbf{abelian variety}, and its $ F $-rational points as a subgroup \cite[Proposition III.2.2(f)]{Sil09}. When $ F = K $, the \textbf{Mordell-Weil theorem} and the structure theorem of finitely generated abelian groups characterises the \textbf{Mordell-Weil group} $ E\br{K} $ as a direct sum \cite[Theorem VIII.6.7]{Sil09}
+$$ E\br{K} \cong \torsE \times \ZZ^{\rkE}, $$
+where $ \torsE $ is its finite subgroup of torsion points and $ \rkE $ is its rank as a free abelian group. While the torsion subgroup is finitely computable and well-understood by the \textbf{Lutz-Nagell theorem} \cite[Corollary VIII.7.2]{Sil09}, the \textbf{reduction theorem} \cite[Application VII.3.2]{Sil09}, and \textbf{Mazur's theorem} \cite[Theorem VIII.7.5]{Sil09}, the rank is subtly more mysterious, lending itself to a multitude of important problems in number theory, most notably the \textbf{Birch-Swinnerton-Dyer conjecture} \cite[Conjecture C.16.5]{Sil09}. As a start, it is unknown if the rank has an upper bound, with a historical belief that it does not \cite[Conjecture VIII.10.1]{Sil09} due to several, albeit rare, findings of elliptic curves with large rank.
+
+Due to the extra structure elliptic curves present as objects in the category of abelian varieties, there are two relevant notions of maps between elliptic curves, namely the usual \textbf{morphisms} of quasi-projective varieties, which behave irrespective of their basepoints, and \textbf{isogenies} of elliptic curves, which preserve basepoints and are automatically group homomorphisms \cite[Theorem III.4.8]{Sil09}. Hence morphisms of elliptic curves always refer to isogenies, while emphasis will be made in occasional mentions of $ F $-morphisms of varieties, and any mention of morphisms of varieties without specifying the field of consideration always refers to morphisms over the algebraic closure. There are three main families of endomorphisms that will be relevant, the first of which is the natural \textbf{translation} map
+$$ \function[\tau_P]{E}{E}{Q}{P + Q}, \qquad P \in E, $$
+and its restriction to $ E\br{F} $, which are merely isomorphisms of varieties as they shift the basepoint. Associated to such a map is the category-theoretic \textbf{pull-back} $ \tau_P^* : \overline{F}\br{E} \to \overline{F}\br{E} $, which simply precomposes any rational function with a translation by $ -P $. Next is the natural \textbf{multiplication by $ n $} map
+$$ \function[\sbr{n}]{E}{E}{Q}{nQ}, \qquad n \in \NN, $$
+which is an isomorphism of elliptic curves whenever $ n \ne 0 $, whose kernel is by definition the \textbf{$ n $-torsion subgroup} $ E\sbr{n} $ that is isomorphic to $ \br{\ZZ / n}^2 $ after fixing a choice of basis points \cite[Corollary III.6.4(b)]{Sil09}. It is worth noting that restricting multiplication by $ n $ to $ E\br{F} $ only produces an endomorphism of elliptic curves, which is surjective when $ F $ is algebraically closed \cite[Theorem II.2.3]{Sil09}. When $ F = \RR $, the group of real points is either connected and isomorphic to $ \RR / \ZZ $ as Lie groups, for which multiplication by $ n $ is surjective, or has two connected components and is isomorphic to $ \RR / \ZZ \times \ZZ / 2 $, for which multiplication by $ n $ is also surjective when $ n $ is odd and has cokernel $ \ZZ / 2 $ otherwise \cite[Corollary V.2.3.1]{Sil94}. Finally, allowing multiplication by $ -1 $ in the definition above gives the natural \textbf{inversion} map
+$$ \function[\iota]{E}{E}{Q}{-Q}, $$
+and its restriction to $ E\br{F} $, which are obviously isomorphisms of elliptic curves.
+
+\pagebreak
+
+As a consequence of the \textbf{Riemann-Roch theorem} \cite[Theorem II.5.4]{Sil09}, any elliptic curve as defined above is isomorphic as a variety to the projective plane algebraic curve given by a \textbf{Weierstrass equation}
+$$ E_{a, b} \coloneqq \cbr{\sbr{x : y : z} \in \PP^2 \st y^2z = x^3 + axz^2 + bz^3}, \qquad \OOO \coloneqq \sbr{0 : 1 : 0}, \qquad a, b \in F, $$
+and conversely, any such \textbf{Weierstrass curve}, given the smoothness condition on the \textbf{discriminant}
+$$ \Delta\br{E_{a, b}} \coloneqq 4a^3 + 27b^2 \ne 0, $$
+defines an elliptic curve \cite[Proposition III.3.1]{Sil09}. Two elliptic curves are $ F $-isomorphic precisely when their Weierstrass equations are related by the change of variables $ \br{x, y} \leftrightarrow \br{u^2x, u^3y} $ for some $ u \in F^\times $, which relates the coefficients by $ \br{a, b} \leftrightarrow \br{u^4a, u^6b} $, so that when $ F = \overline{F} $, this equates to their \textbf{$ \j $-invariants}
+$$ \j\br{E_{a, b}} \coloneqq \dfrac{\br{4a}^3}{\Delta\br{E_{a, b}}} $$
+being equal \cite[Proposition III.1.4(b)]{Sil09}. When $ F = K $, the uniqueness of a Weierstrass representation can be guaranteed up to units by additionally requiring $ 0 \le \ord_v a < 4 $ and $ 0 \le \ord_v b < 6 $ for all non-archimedean places $ v \in \VVV_K^0 $. Thus the set of isomorphism classes of elliptic curves defined over $ K $ is representable by a set
+$$ \EEE\br{K} \coloneqq \cbr{E_{a, b} \st \begin{array}{l} a, b \in K, \ \Delta\br{E_{a, b}} \ne 0, \\ \forall v \in \VVV_K^0, \ 0 \le \ord_v a < 4, \ 0 \le \ord_v b < 6 \end{array}}. $$
+When $ F = K_v $ for some non-archimedean place $ v \in \VVV_K^0 $, an analogous unique Weierstrass representation can be constructed with the requirement only for $ v $, and these are called \textbf{minimal Weierstrass equations}.
+
+Now any point in projective space can be equipped with an \textbf{absolute height}
+$$ \function[\hhh_{\PP^n}]{\PP^n}{\NN^+}{\sbr{x_0 : \dots : x_n}}{\displaystyle\PV\max\br{\abs{x_0}_v, \dots, \abs{x_n}_v}^{\sbr{K_v : \QQ_v}}}, \qquad n \in \NN, $$
+where $ \abs{-}_v $ are normalised absolute values for each place $ v \in \VVV_K $. By the product formula, this is independent of the choice of homogeneous coordinates \cite[Proposition VIII.5.4]{Sil09}, with only finitely many points with absolute height at most a fixed $ h \in \NN^+ $ \cite[Theorem VIII.5.11]{Sil09}, inducing a well-defined \textbf{natural density}
+$$ \delta_{\PP^n}\br{\PPP} \coloneqq \lim_{h \to \infty} \dfrac{\#\cbr{P \in \PP^n \st \PPP\br{P}, \ \hhh_{\PP^n}\br{P} \le h}}{\#\cbr{P \in \PP^n \st \hhh_{\PP^n}\br{P} \le h}}, $$
+where $ \PPP $ is any predicate defined on $ \PP^n $. As such, define an absolute height on $ \EEE\br{K} $ by
+$$ \function[\hhh]{\EEE\br{K}}{\NN^+}{E_{a, b}}{\hhh_{\PP^n}\br{\sbr{a : b}}}, $$
+where $ a, b \in K $ are defined under the conditions $ 0 \le \ord_v a < 4 $ and $ 0 \le \ord_v b < 6 $ for all non-archimedean places $ v \in \VVV_K^0 $, and if $ \PPP $ is a predicate defined on $ \EEE\br{K} $, define a natural density on $ \EEE\br{K} $ by
+$$ \delta\br{\PPP} \coloneqq \delta_{\PP^n}\br{\PPP, \ \Delta\br{E_{a, b}} \ne 0}. $$
+This convenient notation paves way for results and conjectures on the asymptotic behaviour of invariants associated to elliptic curves, such as $ \torsE $ and $ \rkE $, and it makes sense to say that some predicate $ \PPP $ holds for \textbf{almost all} elliptic curves $ E \in \EEE\br{K} $ whenever $ \delta\br{\PPP} = 1 $ is meant.
+
+Given a fixed $ n \in \NN^+ $, the $ \AG{F} $-action on $ E\sbr{n} $ induces a homomorphism
+$$ \rho_{E\sbr{n}} : \AG{F} \to \Aut E\sbr{n} \cong \GL_2\br{\ZZ / n}, $$
+where the latter isomorphism arises from fixing a choice of basis points. This is called a two-dimensional \textbf{modulo $ n $ Galois representation}, and its kernel is precisely $ \Gal\br{\overline{F} / F\br{E\sbr{n}}} $, where the \textbf{$ n $-torsion field} $ F\br{E\sbr{n}} $ is the adjunction of $ F $ with the coordinates of all non-trivial points in $ E\sbr{n} $. The finite version of the Galois correspondence shows that the $ n $-torsion field is also Galois over $ F $, so that $ \rho_{E\sbr{n}} $ descends to an embedding $ \Gal\br{F\br{E\sbr{n}} / F} \hookrightarrow \GL_2\br{\ZZ / n} $. On the other hand, given an explicit Weierstrass equation for $ E = E_{a, b} $, a series of \textbf{$ n $-division polynomials} $ \Psi_n \in F\sbr{a, b, X, Y} $ can be defined inductively for all $ n \in \NN^+ $, which vanish exactly on the $ X $-coordinates of all non-trivial points in $ E\sbr{n} $ \cite[Exercise 3.7]{Sil09}. In other words, adjoining these $ X $-coordinates to $ F $ yields the splitting field $ F_{\Psi_n} $ of $ \Psi_n $, which is in turn a subfield of the $ n $-torsion field obtained by adjoining both coordinates, realising an embedding $ \Gal\br{F_{\Psi_n} / F} \hookrightarrow \GL_n\br{\ZZ / n} $.
+
+\pagebreak
+
+\subsection{Divisors and linear systems}
+
+This subsection records several basic facts about Weil divisors, a construction encoding points of an elliptic curve, taken from algebraic geometry. The \textbf{divisor group} $ \Div $ is the free abelian group generated by all of the formal symbols $ \sbr{Q} $ for all points $ Q \in E $, so a \textbf{divisor} is a finite formal sum
+$$ D \coloneqq \sum_{Q \in E} n_Q\sbr{Q}, \qquad n_Q \in \ZZ. $$
+Given such a divisor, its \textbf{degree} is $ \deg D \coloneqq \sum_{Q \in E} n_Q \in \ZZ $, and its \textbf{sum} is $ \sum D \coloneqq \sum_{Q \in E} \sbr{n_Q}Q $. If $ f \in \overline{F}\br{E}^\times $ is a non-zero rational function, it has an \textbf{associated divisor}
+$$ \sbr{f} \coloneqq \sum_{Q \in E} \br{\ord_Q f}\sbr{Q}, $$
+where each $ \ord_Q f $ is by definition the normalised valuation of $ f $ on the discrete valuation ring $ \overline{F}\sbr{E}_Q $, which is obtained by localising $ \overline{F}\sbr{E} $ at the maximal ideal generated by rational functions vanishing on $ Q $. A divisor $ D \in \Div $ is then said to be \textbf{principal} if it is an associated divisor of some non-zero rational function, while two divisors $ D, D' \in \Div $ are said to be \textbf{linearly equivalent}, or $ D \sim D' $, if their difference is principal. This condition is equivalent to the simultaneous equalities $ \deg D = \deg D' $ and $ \sum D = \sum D' $ \cite[Corollary III.3.5]{Sil09}, and using the easy computation \cite[Proposition II.3.6(b)]{Sil09} that
+$$ \sbr{\tau_P^*f} = \sum_{Q \in E} \br{\ord_Q f}\sbr{P + Q}, \qquad P \in E, $$
+it follows immediately that $ P \in E\sbr{n} $ if and only if $ n\sbr{\OOO} \sim n\sbr{P} $ for any $ n \in \NN^+ $. Now, $ E $ can be canonically identified with the \textbf{Picard group} $ \Pic $ of degree zero principal divisors, via the \textbf{Abel-Jacobi map} that sends a point $ P \in E $ to the divisor class of $ \sbr{P} - \sbr{\OOO} $ \cite[Proposition III.3.4]{Sil09}, which also provides the Cartier self-duality $ E\sbr{n} \cong \Pic\sbr{n} \cong E\sbr{n}^\dagger $ for any $ n \in \NN^+ $ \cite[Theorem III.15.1]{Mum70}. This identification supplies an alternative group law on $ E $, equivalent to the geometric group law by considering the non-zero rational \textbf{line function} $ \L_{P, Q} \in \overline{F}\br{E}^\times $ joining the points $ P, Q \in E $ with associated divisor
+$$ \sbr{\L_{P, Q}} = \sbr{P + Q} - \sbr{P} - \sbr{Q} + \sbr{\OOO}. $$
+Moreover, the identification also gives an exact sequence of abelian groups \cite[Remark III.3.5.1]{Sil09}
+$$ 0 \to \overline{F}^\times \xrightarrow{\hookrightarrow} \overline{F}\br{E}^\times \xrightarrow{\sbr{-}} \Div[0] \xrightarrow{\sum} E \cong \Pic \to 0, $$
+where $ \Div[0] $ is the subgroup of degree zero divisors of $ \Div $.
+
+The notion of Weil divisors allows for the definition of certain morphisms arising from linear systems, which would first require the relevant divisors $ D \in \Div $ to be \textbf{effective}, or $ D \ge 0 $, which says that all of its coefficients are non-negative. Then define the \textbf{complete linear system} of $ D $ by
+\begin{align*}
+\LLL\br{D}
+& \coloneqq \cbr{D' \in \Div \st D' \ge 0, \ D' \sim D} \\
+& \cong \cbr{f \in \overline{F}\br{E}^\times \st D + \sbr{f} \ge 0} \cup \cbr{0},
+\end{align*}
+which is a finite-dimensional $ \overline{F} $-vector space of global sections \cite[Proposition II.5.2(b)]{Sil09}. The Riemann-Roch theorem computes its dimension to be $ \dim_{\overline{F}} \LLL\br{D} = \deg D $ \cite[Proposition II.5.5(c)]{Sil09}, and hence, after choosing a basis of global sections $ f_i \in \LLL\br{D} $, there is a well-defined morphism abusively denoted
+$$ \function[\LLL\br{D}]{E}{\overline{F}^{\deg D}}{Q}{\br{f_1\br{Q}, \dots, f_{\deg D}\br{Q}}}. $$
+Since the valuation $ \ord_Q f $ is normalised, the divisors of the basis functions remain unchanged upon scaling by elements of $ \overline{F}^\times $, so further normalisation gives a projectivisation of the morphism, denoted
+$$ \function[\widehat{\LLL}\br{D}]{E}{\PP^{\deg D - 1}}{Q}{\sbr{f_1\br{Q} : \dots : f_{\deg D}\br{Q}}}. $$
+
+\pagebreak
+
+\noindent
+If two divisors $ D, D' \in \Div $ are linearly equivalent, their complete linear systems $ \LLL\br{D} $ and $ \LLL\br{D'} $ are isomorphic as $ \overline{F} $-vector spaces \cite[Proposition II.5.2(c)]{Sil09}, so their induced morphisms $ \widehat{\LLL}\br{D} $ and $ \widehat{\LLL}\br{D'} $ are equal up to some projective transformation. This will be particularly relevant for the divisor $ D = n\sbr{\OOO} $, for some fixed $ n \in \NN^+ $, where the morphisms induced by the linear systems will simply be written as
+$$ \LLL_n \coloneqq \LLL\br{n\sbr{\OOO}} : E \to \overline{F}^n, \qquad \widehat{\LLL_n} \coloneqq \widehat{\LLL}\br{n\sbr{\OOO}} : E \to \PP^{n - 1}. $$
+In fact, translating a general theorem of invertible sheaves \cite[Theorem II.7.1]{Har77} gives a unique projective transformation $ \widehat{T_P} \in \PGL_n $ that only depends on the choice of $ P \in E\sbr{n} $, where now $ D \sim n\sbr{P} $, such that
+$$ \widehat{\LLL_n}\br{P + Q} = \widehat{T_P}\widehat{\LLL_n}\br{Q}, \qquad Q \in E, $$
+and conversely, if such an equality holds, then $ D \sim n\sbr{P} $. Furthermore, lifting this matrix to $ \GL_n $ through scaling also gives a linear transformation $ T_P \in \GL_n $, which is unique only after fixing a basis of global sections chosen by fixing a non-zero rational function $ f_P \in \overline{F}\br{E}^\times $ with associated divisor $ \sbr{f_P} = n\sbr{P} - D $.
+
+The language of Weil divisors also allows for the construction of a non-degenerate alternating $ \ZZ $-bilinear pairing, whose image is an $ n $-th root of unity, known as the \textbf{$ n $-Weil pairing} \cite[Proposition III.8.1]{Sil09}
+$$ \e_n : E\sbr{n} \times E\sbr{n} \to \overline{F}^\times. $$
+There are several definitions in the literature that are equivalent up to sign, one of which is outlined as follows \cite[Exercise 3.16]{Sil09}. To define $ \e_n\br{P, P'} $ for two points $ P, P' \in E\sbr{n} $, first choose any two divisors
+$$ D \coloneqq \sum_{Q \in E} n_Q\sbr{Q} \in \Div, \qquad D' \coloneqq \sum_{Q \in E} n_Q'\sbr{Q} \in \Div, $$
+satisfying $ \deg D = \deg D' = 0 $, and $ \sum D = P $ and $ \sum D' = P' $, with an extra \textbf{disjoint support} condition
+$$ \cbr{Q \in E \st n_Q \ne 0} \cap \cbr{Q \in E \st n_Q' \ne 0} = \emptyset. $$
+Then pick two non-zero rational functions $ f, f' \in \overline{F}\br{E}^\times $ such that $ \sbr{f} = nD $ and $ \sbr{f'} = nD' $, and define
+$$ \e_n\br{P, P'} \coloneqq \dfrac{f'\br{D}}{f\br{D'}} \coloneqq \dfrac{\prod_{Q \in E} f'\br{Q}^{n_Q}}{\prod_{Q \in E} f\br{Q}^{n_Q'}}, $$
+which is indeed a well-defined finite product, independent of the choices of divisors and rational functions, and outputs an $ n $-th root of unity. Perhaps more naturally, using the canonical identification $ E \cong \Pic $, this transforms into a pairing of Picard groups with disjoint support
+$$ \function[\widetilde{\e_n}]{\Pic\sbr{n} \times \Pic\sbr{n}}{\overline{F}^\times}{\br{D, D'}}{\dfrac{f'\br{D}}{f\br{D'}}}, $$
+where $ f, f' \in \overline{F}\br{E}^\times $ are the respective non-zero rational functions with associated divisors $ \sbr{f} = nD $ and $ \sbr{f'} = nD' $. With this formulation, the $ n $-Weil pairing will be invariant after replacing $ D' $ with any linearly equivalent divisor $ D'' \coloneqq D' + \sbr{g} \in \Pic $, for some non-zero rational function $ g \in \overline{F}\br{E}^\times $. In particular, if $ f'' \in \overline{F}\br{E}^\times $ is a non-zero rational function with associated divisor $ \sbr{f''} = nD'' $, then clearly $ f'' = f'g^n $, and since Weil's reciprocity law \cite[Exercise 2.11]{Sil09} gives an equality $ f\br{\sbr{g}} = g\br{\sbr{f}} = g^n\br{D} $,
+$$ \widetilde{\e_n}\br{D, D''} = \dfrac{f''\br{D}}{f\br{D''}} = \dfrac{f'\br{D}g^n\br{D}}{f\br{D'}f\br{\sbr{g}}} = \dfrac{f'\br{D}}{f\br{D'}} = \widetilde{\e_n}\br{D, D'}. $$
+Thus the disjoint support condition can be relaxed, and it suffices to consider $ D = \sbr{P} - \sbr{\OOO} $ and $ D' = \sbr{P'} - \sbr{\OOO} $ by utilising the line function $ \L_{P, Q} \in \overline{F}\br{E}^\times $, which coincides with the original definition of the pairing.
+
+\pagebreak
+
+\subsection{Selmer and Tate-Shafarevich groups}
+
+As hinted in the previous section, the primary application of Galois cohomology in this report will be to define and study fundamental invariants of elliptic curves and generally abelian varieties, namely the Selmer group and the Tate-Shafarevich group, which are the topics of this subsection. Fixing $ n \in \NN^+ $, this begins by considering the short exact sequence of abelian groups induced by multiplication by $ n $
+$$ 0 \to E\sbr{n} \xrightarrow{\hookrightarrow} E \xrightarrow{\sbr{n}} E \to 0. $$
+Applying Galois cohomology induces a long exact sequence of cohomology groups, which can be truncated at $ \HE[n]{F} $ to establish a short exact \textbf{Kummer sequence} \cite[Sequence X.4$ \br{*} $]{Sil09}
+$$ 0 \to \En{F} \to \HE[n]{F} \to \HE{F}\sbr{n} \to 0. $$
+Setting $ F = K $ gives the global Kummer sequence, while setting $ F = K_v $ for each place $ v \in \VVV_K $ gives local Kummer sequences, and their individual groups are related by localisation maps induced by the natural inclusions $ E\br{\overline{K}} \hookrightarrow E\br{\overline{K_v}} $ and $ \AG{K_v} \hookrightarrow \AG{K} $. In particular, as discussed in the previous section, direct products of localisation maps of $ \HE[n]{K} $ and $ \HE{K} $ have images landing in their respective first adelic cohomology groups. Likewise, the image of $ E\br{K_v} $ in $ \HE[n]{K_v} $ is unramified for any place $ v \in \VVV_K $ except possibly those in the finite set
+$$ \VVV_K^\infty \cup \cbr{v \in \VVV_K^0 \st \widetilde{E}\br{\FF_v} \ \text{is singular}} \cup \cbr{v \in \VVV_K^0 \st \ord_v n \ne 0}, $$
+where $ \widetilde{E}\br{\FF_v} $ denotes the reduction modulo $ v $ of the minimal Weierstrass equation for $ E\br{K_v} $ \cite[Proposition VIII.2.1]{Sil09}. As such, the image of the zeroth adelic cohomology group, analogously denoted
+$$ E\br{\AA_K} \coloneqq \PV E\br{K_v}, $$
+also lands in the first adelic cohomology group $ \HE[n]{\AA_K} $. Thus, combining the global and local Kummer sequences furnishes the crucial row-exact \textbf{Kummer diagram} \cite[Diagram X.4$ \br{**} $]{Sil09}
+$$
+\begin{tikzcd}
+0 \arrow{r} & \En{K} \arrow{r}{\alpha} \arrow{d}[swap]{\nu} & \HE[n]{K} \arrow{r}{\beta} \arrow{d}[swap]{\lambda} \arrow{dr}{\sigma} & \HE{K}\sbr{n} \arrow{r} \arrow{d}{\tau} & 0 \\
+0 \arrow{r} & \En{\AA_K} \arrow{r}[swap]{\kappa} & \HE[n]{\AA_K} \arrow{r}[swap]{\mu} & \HE{\AA_K}\sbr{n} \arrow{r} & 0
+\end{tikzcd},
+$$
+where $ \sigma $ is the composition in either direction.
+
+In the spirit of the weak Mordell-Weil theorem, it would be ideal if $ \HE[n]{K} $ were finite, so that proving the finiteness of $ \En{K} $ would reduce to its finiteness, yet this is usually not the case. Rather, the usual proof considers a subgroup of $ \HE[n]{K} $ containing $ \En{K} $ that is provably finite \cite[Theorem X.4.2(b)]{Sil09} and effectively computable \cite[Remark X.4.5]{Sil09}. This is the role played by the \textbf{$ n $-Selmer group}
+$$ \Sel[n] \coloneqq \ker \br{\sigma : \HE[n]{K} \to \HE{\AA_K}\sbr{n}}, $$
+as determining the local images of $ \im \kappa $ can be done via Hensel's lemma in contrast to the difficulty of the global image $ \im \alpha $. On one hand, this contains the familiar first Tate-Shafarevich subgroup $ \Sha[K, E\sbr{n}] = \ker \lambda $, and by the first isomorphism theorem, their quotient can be characterised as an intersection
+$$ \Sel[n] / \Sha[K, E\sbr{n}] = \ker \br{\mu \circ \lambda} / \ker \lambda \xrightarrow{\sim} \lambda\br{\ker \br{\mu \circ \lambda}} = \ker \mu \cap \im \lambda = \im \kappa \cap \im \lambda. $$
+On the other hand, the classical \textbf{Tate-Shafarevich group} of an elliptic curve is defined to be
+$$ \Sha \coloneqq \ker \br{\HE{K} \to \HE{\AA_K}}, $$
+so that $ \Sha\sbr{n} = \ker \tau $, and an application of the snake lemma to the Kummer diagram yields a famous short exact sequence of abelian groups \cite[Theorem X.4.2(a)]{Sil09}
+$$ 0 \to E\br{K} \otimes \ZZ / n \xrightarrow{\alpha} \Sel[n] \xrightarrow{\beta} \Sha\sbr{n} \to 0, $$
+noting that $ \En{K} \cong E\br{K} \otimes \ZZ / n $. This result is fundamental, and implies the finiteness of both $ \En{K} $ and $ \Sha\sbr{n} $, although patching up over all $ n \in \NN $ to produce $ \Sha $ guarantees nothing and is exactly the content of the \textbf{Tate-Shafarevich conjecture} \cite[Conjecture X.4.13]{Sil09}.
+
+\pagebreak
+
+\subsection{Twists and torsors}
+
+The abstract algebraic definitions of the Selmer group and the Tate-Shafarevich group can be interpreted geometrically as certain sets of twists of $ E $. For a general definition, if $ V $ is a quasi-projective variety defined over $ F $, then an \textbf{$ F $-twist} of $ V $ is a quasi-projective variety $ C $ defined over $ F $ that is isomorphic to $ V $, and two $ F $-twists are considered equivalent if they are $ F $-isomorphic. The set of all such twists is denoted
+$$ \Twist{V}{F} \coloneqq \cbr{\text{$ F $-twists of} \ V}. $$
+Note that these are $ F $-isomorphism classes of $ \overline{F} $-isomorphisms, but the fact that they are equivalence classes will be implicit, and isomorphisms over $ \overline{F} $ are just referred to as isomorphisms, as previously remarked. A general \textbf{twisting principle} in Galois descent says that the $ F $-twists of $ V $ exactly parameterise the $ 1 $-cocycles of $ \H^1\br{F, \Aut V} $ \cite[Proposition X.4]{Ser80}, so there is a bijective correspondence of pointed sets
+$$ \Twist{V}{F} \quad \leftrightsquigarrow \quad \H^1\br{F, \Aut V}, $$
+where $ \Aut V $ is the group of automorphisms of $ V $. By this interpretation, the presence of non-trivial $ 1 $-cocycles measures the failure of these isomorphisms to be definable over $ F $.
+
+As a preliminary example, consider the group of automorphisms $ \PGL_n $ of $ \PP^{n - 1} $ for a fixed $ n \in \NN^+ $. Applying the twisting principle to the pointed set $ \Twist{\PP^{n - 1}}{F} $, conventionally called \textbf{$ F $-Brauer-Severi varieties} of dimension $ n $, gives a bijective correspondence of pointed sets \cite[Section X.6]{Ser80}
+$$ \bijection{\Twist{\PP^{n - 1}}{F}}{\H^1\br{F, \PGL_n}}{C}{\br{\sigma \mapsto \sigma \cdot \phi_C \circ \phi_C^{-1}}}, $$
+where $ \phi_C : C \xrightarrow{\sim} \PP^{n - 1} $ is the automorphism encoded in the data of $ C $ that relates $ C $ and $ \PP^{n - 1} $. Note that the dimension here, in contrast to the convention in literature, is defined to be one higher than the dimension of the overarching projective space, for convenience purposes later. Then an $ F $-Brauer-Severi variety $ C \in \Twist{\PP^{n - 1}}{F} $ corresponds to the trivial class in $ \H^1\br{F, \PGL_n} $ if and only if $ C\br{F} \ne \emptyset $.
+
+The twisting principle for $ E $ is also a bijective correspondence of pointed sets \cite[Theorem X.2.2]{Sil09}
+$$ \bijection{\Twist{E}{F}}{\H^1\br{F, \Aut E}}{C}{\br{\sigma \mapsto \sigma \cdot \phi_C \circ \phi_C^{-1}}}, $$
+where $ \phi_C : C \xrightarrow{\sim} E $ denotes the automorphism relating $ C $ and $ E $. Note that $ \Aut E $ refers to the group of automorphisms of $ E $ as a quasi-projective variety, ignoring its group structure.
+
+When the group structure of $ E $ is brought into the picture, a certain twist emerges by respecting actions of $ E $ on its twists. In particular, an \textbf{$ F $-torsor} for $ E $ is an $ F $-twist $ C $ of $ E $ equipped with a regular $ E $-action, which are identified up to $ E $-equivariant $ F $-isomorphisms, forming the \textbf{Weil-Ch\^atelet pointed set}
+$$ \WC{F} \coloneqq \cbr{\text{$ F $-torsors for} \ E}, $$
+where the trivial $ F $-torsor exactly consists of $ E $ and its self-translations. Note that in common literature, the twisting is implicit and arises only after fixing an initial point $ p_C \in C $ and mapping it to $ \OOO \in E $, which produces an isomorphism $ C \xrightarrow{\sim} E $ by relaying the group operations of $ E $ onto $ C $ \cite[Proposition X.3.2]{Sil09}. By the twisting principle, there is again a bijective correspondence of pointed sets \cite[Theorem X.3.6]{Sil09}
+$$ \bijection{\WC{F}}{\HE{F}}{C}{\br{\sigma \mapsto \sigma \cdot p_C - p_C}}, $$
+which also furnishes a group structure on $ \WC{F} $. Then an $ F $-torsor $ C \in \WC{F} $ corresponds to the trivial class in $ \HE{F} $ if and only if $ C\br{F} \ne \emptyset $ \cite[Proposition X.3.3]{Sil09}. By this interpretation, there is again a diagonal restriction map $ \WC{K} \to \PV\WC{K_v} $ with kernel exactly the Tate-Shafarevich group $ \Sha $. Thus $ \Sha $ measures the failure of the \textbf{Hasse principle} in $ \WC{K} $, namely the presence of $ K $-torsor curves with $ K_v $-rational points at every place $ v \in \VVV_K $ but with no $ K $-rational points. One may similarly interpret the $ n $-Selmer group $ \Sel[n] $ by parameterising $ 1 $-cocycles of $ \HE[n]{K} $ in terms of $ K $-torsors for $ E\sbr{n} $ in some Weil-Ch\^atelet group, but this is omitted for an alternative later.
+
+\pagebreak
+
+\subsection{Arithmetic duality theorems}
+
+As the overall theme of this report revolves around arithmetic duality, this final subsection reiterates the relevant consequences of Tate's local and global dualities for general abelian varieties, translated to the case of elliptic curves defined over general fields of characteristic zero. As a start, due the self-duality of the $ \AG{F} $-module $ E\sbr{n} \cong E\sbr{n}^\dagger $ for any $ n \in \NN^+ $, when $ F = K_v $ for a place $ v \in \VVV_K $, Tate's local duality simplifies to a natural Pontryagin duality between finite groups
+$$ \HE[n]{K_v} \cong \HE[n]{K_v}^\star. $$
+Similarly, when $ F = K $, Tate's global duality simplifies to natural Pontryagin dualities between finite groups
+$$ \Sha[K, E\sbr{n}] \cong \SHA^2\br{K, E\sbr{n}}^\star, \qquad \SHA^2\br{K, E\sbr{n}} \cong \Sha[K, E\sbr{n}]^\star, $$
+and the middle terms of the Poitou-Tate exact sequence become
+$$ \dots \to \HE[n]{K} \xrightarrow{\tau^1} \HE[n]{\AA_K} \cong \HE[n]{\AA_K}^\star \xrightarrow{\sigma^1} \HE[n]{K}^\star \to \dots. $$
+
+On the other hand, the $ \AG{F} $-module $ E \cong \Pic $, while self-dual as an abelian variety, is not finite, so the statements of arithmetic duality are formulated slightly differently. When $ F = K_v $ for a place $ v \in \VVV_K $, Tate's local duality establishes a canonical non-degenerate perfect pairing \cite[Corollary I.3.4]{Mil06}
+$$ \H^n\br{K_v, E} \times \H^{1 - n}\br{K_v, E} \to \Br K_v, \qquad n = 0, 1, $$
+which again induces natural Pontryagin dualities
+$$ \H^0\br{K_v, E} \cong \HE{K_v}^\star, \qquad \HE{K_v} \cong \H^0\br{K_v, E}^\star, $$
+between compact groups and discrete groups respectively. While the non-archimedean case has the expected identifications $ \Br K_v \cong \QQ / \ZZ $ and $ \H^0\br{K_v, E} = E\br{K_v} $, the archimedean case uses the aforementioned convention of the zeroth Tate cohomology group \cite[Remark I.3.7]{Mil06}, and the resulting dualities become
+$$ \pi_0\br{E\br{K_v}} \cong \HE{K_v}^\star, \qquad \HE{K_v} \cong \pi_0\br{E\br{K_v}}^\star, $$
+where $ \pi_0 $ is the group functor describing the number of connected components. In particular, $ \pi_0\br{E\br{\CC}} $ is clearly always trivial, while $ \pi_0\br{E\br{\RR}} $ is trivial when $ E\br{\RR} $ is connected and $ \ZZ / 2 $ otherwise. When $ F = K $, there is also a formulation of Tate's global duality \cite[Theorem I.6.13]{Mil06} in terms of a canonical non-degenerate alternating $ \ZZ $-bilinear pairing, known as the \textbf{Cassels-Tate pairing}
+$$ \Sha \times \Sha \to \QQ / \ZZ. $$
+Assuming the Tate-Shafarevich conjecture, it follows that $ \Sha $ and any of its $ p $-primary components have orders perfect squares \cite[Theorem X.4.14]{Sil09}. There is also a ten-term version of the Poitou-Tate exact sequence \cite[Remark I.6.14]{Mil06}, but both of these will not be used and will be elided for brevity.
+
+\pagebreak
+
+\chapter{Modelling Selmer groups}
+
+This chapter will be dedicated to understanding and modelling the behaviour of Selmer groups across all elliptic curves defined over number fields. The first short section will provide basic definitions of quadratic modules and what it means to be a Lagrangian submodule of a metabolic quadratic module. The second section will prove, using arithmetic duality, that a Selmer group is naturally an intersection of two Lagrangian direct summands in a metabolic quadratic module of infinite rank. The third section will suggest a finite combinatorial construction mimicking this exact property, which induces a probabilistic distribution of orders of $ p^e $-Selmer groups with average equal to the sum of divisors of a prime power $ p^e \in \NN^+ $.
+
+\section{Quadratic modules}
+
+The elementary theory of quadratic forms is pervasive in algebra, geometry, and number theory alike. Yet, the common literature primarily considers the theory over finite fields, while much can also be said about the theory over other non-integral domains like $ \ZZ / n $ for any $ n \in \NN^+ $, as well as those quadratic forms taking values in an abelian group like $ \QQ / \ZZ $, which will be relevant to later discussions. Some of these definitions are non-standard, and will follow the convention of the paper on random maximal isotropic subspaces by Poonen and Rains \cite{PR12}. Throughout this section, let $ R $ be a ring, and let $ M $ be an $ R $-module.
+
+\subsection{Definitions}
+
+The following are several relevant definitions in the modified theory of quadratic forms over $ R $-modules, noting the explicit distinction between maps of $ R $-modules and maps of abelian groups.
+
+\begin{definition}
+A map $ \omega_M : M \to \QQ / \ZZ $ is \textbf{quadratic} if it has an induced symmetric $ \ZZ $-bilinear pairing
+$$ \function[\abr{-, -}_M]{M \times M}{\QQ / \ZZ}{\br{x, y}}{\omega_M\br{x + y} - \omega_M\br{x} - \omega_M\br{y}}, $$
+and \textbf{even} if $ \omega_M = \omega_M \circ \br{-1} $. A \textbf{quadratic form} is simply an even quadratic map, and a \textbf{quadratic $ R $-module} is an $ R $-module equipped with a quadratic form.
+\end{definition}
+
+\begin{remark}
+The standard convention requires quadratic forms $ \omega_M : M \to \QQ / \ZZ $ to satisfy $ \omega_M \circ n = n^2 \circ \omega_M $ for all $ n \in \NN^+ $, but this is an immediate consequence of being even and quadratic \cite[Remark 2.1]{PR12}.
+\end{remark}
+
+\begin{definition}
+A submodule $ N $ of a quadratic $ R $-module $ M $ is \textbf{totally isotropic} if $ \omega_M\br{N} = 0 $, and \textbf{maximal} if it is equal to its \textbf{orthogonal complement}
+\begin{align*}
+N^\perp
+& \coloneqq \cbr{x \in M \st \forall y \in N, \ \abr{x, y}_M = 0} \\
+& = \cbr{x \in M \st \forall y \in N, \ \omega_M\br{x + y} = \omega_M\br{x} + \omega_M\br{y}}.
+\end{align*}
+A \textbf{Lagrangian} submodule is simply a maximal totally isotropic submodule.
+\end{definition}
+
+\begin{remark}
+Total isotropy gives an obvious containment $ N \subseteq N^\perp $, so that maximality makes semantic sense, otherwise these conditions are non-vacuous and independent of each other in general \cite[Remark 2.3]{PR12}.
+\end{remark}
+
+\pagebreak
+
+\begin{definition}
+A quadratic $ R $-module $ M $ is \textbf{non-degenerate} if $ \abr{-, -}_M $ is a perfect pairing of abelian groups, or equivalently that the natural map from $ M $ to its Pontryagin dual $ M^\star $ given by
+$$ \function{M}{M^\star}{x}{\br{y \mapsto \abr{x, y}_M}} $$
+is an isomorphism of abelian groups. A quadratic $ R $-module is \textbf{weakly metabolic} if it is non-degenerate and contains a Lagrangian submodule, and just \textbf{metabolic} if this submodule is also a direct summand.
+\end{definition}
+
+\begin{remark}
+The alternative convention requires that $ M $ is finite or at least locally compact, so that a nice topology can be equipped on it \cite[Definition 2.13]{PR12}, but this requirement will be elided for simplicity.
+\end{remark}
+
+\subsection{Examples}
+
+There will be two primary examples relevant for each of the following two sections. The first example showcases a common quadratic $ R $-module of finite rank, which will be used heavily in the final section.
+
+\begin{example}
+If $ R $ embeds into $ \QQ / \ZZ $, then the free $ R $-module $ R^{2n} $ for some $ n \in \NN^+ $, equipped with the \textbf{standard hyperbolic quadratic form}
+$$ \function[\omega_{R^{2n}}]{R^{2n}}{R \hookrightarrow \QQ / \ZZ}{\br{x_1, \dots, x_n, y_1, \dots, y_n}}{\displaystyle\sum_{i = 1}^n x_iy_i}, $$
+is a quadratic $ R $-module of finite rank, called the \textbf{standard hyperbolic $ R $-module} of rank $ 2n $, which is metabolic with a Lagrangian direct summand $ R^n \oplus 0^n $.
+\end{example}
+
+This example will be considered in the last section on the finite local rings $ R = \FF_p $ and $ R = \ZZ / p^e $ for some prime power $ p^e \in \NN^+ $, where $ R $ embeds into $ \QQ / \ZZ $ via the identifications $ \FF_p \cong \br{1 / p}\ZZ / \ZZ $ and $ \ZZ / p^e \cong \br{1 / p^e}\ZZ / \ZZ $ respectively. Here, direct summands of free $ R $-modules of finite rank, or equivalently projective $ R $-modules of finite free rank, are finitely generated. Having the additional condition of locality, by Nakayama's lemma, ensures that direct summands of free $ R $-modules of finite rank are also free.
+
+\begin{remark}
+The requirement of projectivity here allows for free direct summands to behave somewhat like vector subspaces over fields, whereas mere submodules are not necessarily free unless the ring is at least a principal ideal domain. By a general classification result \cite[Remark 2.20]{PR12}, quadratic $ R $-modules over a local ring $ R $ can be completely classified up to \textbf{isometries}, isomorphisms of $ R $-modules that preserve their respective quadratic forms. For instance, any metabolic quadratic $ R $-module has even rank, and is isometric to the standard hyperbolic $ R $-module of the same rank with the exception of rings where $ 2 \not\in R^\times $. This is almost true for rings where $ 2 \not\in R^\times $, up to a non-invertible matrix defining the quadratic form.
+\end{remark}
+
+The second example illustrates one where the above freeness argument does not immediately apply.
+
+\begin{example}
+If $ \br{M_i}_{i \in I} $ are weakly metabolic quadratic $ R $-modules with respective Lagrangian submodules $ \br{N_i}_{i \in I} $ for some indexing set $ I $, then the restricted product of $ \br{M_i}_{i \in I} $ with respect to $ \br{N_i}_{i \in I} $,
+$$ M \coloneqq \cbr{\br{x_i}_{i \in I} \in \prod_{i \in I} M_i \st x_i \in N_i \ \text{for all but finitely many} \ i \in I}, $$
+equipped with the quadratic form
+$$ \function[\omega_M]{M}{\QQ / \ZZ}{\br{x_i}_{i \in I}}{\displaystyle\sum_{i \in I} \omega_{M_i}\br{x_i}}, $$
+a finite sum by total isotropy of each $ N_i $, is a quadratic $ R $-module of infinite rank, which is also weakly metabolic with a Lagrangian submodule $ \prod_{i \in I} N_i $.
+\end{example}
+
+An explicit example of this will be given in the following section on the finite ring $ R = \ZZ / n $ for some $ n \in \NN^+ $, which can again be decomposed into finite local rings $ R = \ZZ / p^e $ by the Chinese remainder theorem.
+
+\begin{remark}
+By \textbf{Kaplansky's theorem}, projective modules over local rings are free even without finite generation \cite[Theorem 2]{Kap58}, so the above freeness argument still applies, but this fact will not be used.
+\end{remark}
+
+\pagebreak
+
+\section{Arithmetic of Selmer groups}
+
+The behaviour of the Mordell-Weil group of an elliptic curve $ E $ over a number field $ K $, and hence its Mordell-Weil rank, is largely governed by the behaviour of the $ n $-Selmer group $ \Sel[n] $ for all $ n \in \NN^+ $, and a thorough understanding of its arithmetic will be the topic of this core section. As previously outlined, the $ n $-Selmer group is constructed as the kernel of the localisation map $ \lambda $ in the Kummer diagram
+$$
+\begin{tikzcd}
+0 \arrow{r} & \En{K} \arrow{r}{\alpha} \arrow{d}[swap]{\nu} & \HE[n]{K} \arrow{r}{\beta} \arrow{d}[swap]{\lambda} \arrow{dr}{\sigma} & \HE{K}\sbr{n} \arrow{r} \arrow{d}{\tau} & 0 \\
+0 \arrow{r} & \En{\AA_K} \arrow{r}[swap]{\kappa} & \HE[n]{\AA_K} \arrow{r}[swap]{\mu} & \HE{\AA_K}\sbr{n} \arrow{r} & 0
+\end{tikzcd},
+$$
+while the first isomorphism theorem characterises the quotient $ \Sel[n] / \Sha[K, E\sbr{n}] $ as the intersection of the images of $ \kappa $ and $ \lambda $ inside $ \HE[n]{\AA_K} $. It turns out that $ \HE[n]{\AA_K} $ is a weakly metabolic quadratic $ \ZZ / n $-module of infinite rank, with Lagrangian submodules $ \im \kappa $ and $ \im \lambda $ lying within it. More importantly, it can be further shown that these submodules are often direct summands of the ambient module, in a rigorous sense, and that $ \Sha[K, E\sbr{p^e}] $ vanishes often when $ p^e \in \NN^+ $ is a prime power, so that the desired characterisation of $ \Sel[p^e] $ is achieved. Thus the aim of this section is to prove the following result.
+
+\begin{theorem}
+\label{thm:main1}
+For almost all elliptic curves $ E \in \EEE\br{K} $, there is an isomorphism of abelian groups
+$$ \Sel[p^e] \xrightarrow{\sim} L_1 \cap L_2, $$
+where $ L_1 $ and $ L_2 $ are Lagrangian direct summands of a metabolic quadratic $ \ZZ / p^e $-module of infinite rank.
+\end{theorem}
+
+\begin{remark}
+The same result is already known albeit in a more limited context, namely the case for $ p^e = 2 $ and where the ambient module is a finite-dimensional $ \FF_2 $-vector space \cite[Proposition 1.2.1]{CSS98}.
+\end{remark}
+
+The statement as phrased encompasses several parts whose proofs are all rather involved, so these will be split accordingly in the following five subsections, and are summarised as follows for reference.
+
+\begin{proof}[Proof of Theorem \ref{thm:main1}]
+In light of the above elucidation, set $ L_1 \coloneqq \im \kappa $ and $ L_2 \coloneqq \im \lambda $ in the ambient module $ \HE[n]{\AA_K} $, which has infinitely many generators, even considering its relations, to account for all places. By first defining theta groups, its local components is equipped with a map of pointed sets $ \HE[n]{K_v} \to \QQ / \ZZ $, which is a quadratic form by Corollary \ref{cor:localquadratic} and Proposition \ref{prop:localeven}, and its non-degeneracy is verified using Tate's local duality in Corollary \ref{cor:localnondegenerate}. By proving basic properties of Brauer-Severi diagrams, Proposition \ref{prop:localisotropic} and Proposition \ref{prop:localmaximal} show that the local components of $ L_1 $ are Lagrangian, and as a consequence, the ambient non-degenerate quadratic $ \ZZ / n $-module $ \HE[n]{\AA_K} $ is well-defined by Corollary \ref{cor:quadraticmodule}. The fact that $ L_1 $ and $ L_2 $ are Lagrangian follows soon after in Corollary \ref{cor:locallagrangian} and Proposition \ref{prop:globallagrangian}, hence establishing weak metabolicity. In the specific case of $ n = p^e $, a long-winded algebraic computation yields the triviality of $ \Sha[K, E\sbr{p^e}] $ by introducing the criterion $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $, as summarised in Corollary \ref{cor:vanishingsummary}. Strong metabolicity is established by proving that $ L_1 $ is a direct summand in Corollary \ref{cor:localsummand}, while the same holds for $ L_2 $ under the criterion, as in Proposition \ref{prop:globalsummand}. Finally, the density of elliptic curves satisfying this criterion is justified in Proposition \ref{prop:galoisrepresentation}.
+\end{proof}
+
+Throughout this section, fix the notation of the relevant groups and homomorphisms as in the above Kummer diagram, and when the field of definition is irrelevant to an argument, consider the same elliptic curve $ E $ but defined over a general field $ F $ of characteristic zero.
+
+\subsection{Non-degeneracy of the local quadratic module}
+
+This subsection begins the proof by equipping the first local cohomology group $ \HE[n]{K_v} $ with a well-defined quadratic form, making it a quadratic $ \ZZ / n $-module, and verifying its non-degeneracy as an application of arithmetic duality. The proof primarily follows the arguments in the paper on random maximal isotropic subspaces by Poonen and Rains \cite{PR12}, noting the sign differences commonly disregarded in arithmetic duality, but with a short exposition of theta groups that was elided in their paper for a reference to Mumford's book on abelian varieties \cite{Mum70}. To begin, consider the following purely algebraic result of homological algebra taken from Zarhin's paper on non-commutative cohomologies and Mumford groups \cite{Zar74}.
+
+\pagebreak
+
+Let $ A $ and $ C $ be abelian groups, and let $ B $ be a central extension of $ C $ by $ A $, such that
+$$ 0 \to A \xrightarrow{\alpha} B \xrightarrow{\beta} C \to 0 $$
+is an exact sequence of groups. Let $ c_1, c_2 \in C $ be elements. Since $ \beta $ is surjective, $ c_1 = \beta\br{b_1} $ and $ c_2 = \beta\br{b_2} $ for some elements $ b_1, b_2 \in B $. Since $ C $ is abelian by assumption, the commutator $ \sbr{b_1, b_2} \in B $ maps to the trivial element in $ C $ through $ \beta $, so $ \sbr{b_1, b_2} \in \ker \beta = \im \alpha $, and hence $ \sbr{b_1, b_2} = \alpha\br{a} $ for some element $ a \in A $. Now let $ G $ be a group acting on $ A $, $ B $, and $ C $, and define a lifted commutator pairing by
+$$ \function[\sbr{-, -}]{C \times C}{A}{\br{c_1, c_2}}{a}. $$
+Applying non-abelian group cohomology and the universal property of tensor products, this induces an alternating $ \ZZ $-bilinear commutator pairing $ \sbr{-, -} : \H^2\br{G, C \otimes C} \to \H^2\br{G, A} $.
+
+\begin{lemma}
+\label{lem:cupcommutator}
+There is a commutative triangle of pointed sets
+$$
+\begin{tikzcd}
+\H^2\br{G, C \otimes C} \arrow{r}{\sbr{-, -}} & \H^2\br{G, A} \\
+\H^1\br{G, C} \times \H^1\br{G, C} \arrow{u}{\cup} \arrow{ur}[swap]{\br{\xi_1, \xi_2} \mapsto \delta_1\br{\xi_1 + \xi_2} - \delta_1\br{\xi_1} - \delta_1\br{\xi_2}} &
+\end{tikzcd},
+$$
+where $ \delta_1 $ is the second connecting map between pointed sets.
+\end{lemma}
+
+\begin{proof}
+This is an explicit computation with $ 1 $-cocycles. Let $ \xi_1, \xi_2 \in \H^1\br{G, C} $ be $ 1 $-cocycles, and let $ \sigma, \tau \in G $ be group elements. The construction of $ \delta_1 $ gives elements $ b_\sigma^1, b_\tau^1, b_{\sigma\tau}^1, b_\sigma^2, b_\tau^2, b_{\sigma\tau}^2 \in B $ such that
+$$ \beta\br{b_g^i} = \xi_i\br{g}, \qquad g \in \cbr{\sigma, \tau, \sigma\tau}, \qquad i \in \cbr{1, 2}. $$
+Letting $ b_g \coloneqq b_g^2 + b_g^1 \in B $ for $ g \in \cbr{\sigma, \tau, \sigma\tau} $ yields
+$$ \beta\br{b_g} = \beta\br{b_g^2 + b_g^1} = \beta\br{b_g^2} + \beta\br{b_g^1} = \beta\br{b_g^1} + \beta\br{b_g^2} = \xi_1\br{g} + \xi_2\br{g} = \br{\xi_1 + \xi_2}\br{g}, \qquad g \in \cbr{\sigma, \tau, \sigma\tau}. $$
+By the definition of the cup product,
+$$ \br{\xi_1 \cup \xi_2}\br{\sigma, \tau} = \xi_1\br{\sigma} \otimes \sigma \cdot \xi_2\br{\tau} = \beta\br{b_\sigma^1} \otimes \sigma \cdot \beta\br{b_\tau^2} = \beta\br{b_\sigma^1} \otimes \beta\br{\sigma \cdot b_\tau^2}, $$
+so that $ \sbr{\xi_1, \xi_2}\br{\sigma, \tau} = a $ for some element $ a \in A $ such that
+$$ \alpha\br{a} = \sbr{b_\sigma^1, \sigma \cdot b_\tau^2} = b_\sigma^1 + \sigma \cdot b_\tau^2 - b_\sigma^1 - \sigma \cdot b_\tau^2. $$
+The construction of $ \delta_1 $ again gives elements $ a_{\sigma, \tau}^1, a_{\sigma, \tau}^2 \in A $ such that
+$$ \alpha\br{a_{\sigma, \tau}^1} = b_\sigma^1 + \sigma \cdot b_\tau^1 - b_{\sigma\tau}^1, \qquad \alpha\br{a_{\sigma, \tau}^2} = b_\sigma^2 + \sigma \cdot b_\tau^2 - b_{\sigma\tau}^2 = -b_{\sigma\tau}^2 + b_\sigma^2 + \sigma \cdot b_\tau^2, $$
+so that $ \delta_1\br{\xi_1}\br{\sigma, \tau} = a_{\sigma, \tau}^1 $ and $ \delta_1\br{\xi_2}\br{\sigma, \tau} = a_{\sigma, \tau}^2 $, as well as an element $ a_{\sigma, \tau} \in A $ such that
+$$ \alpha\br{a_{\sigma, \tau}} = b_\sigma + \sigma \cdot b_\tau - b_{\sigma\tau} = b_\sigma^2 + b_\sigma^1 + \sigma \cdot b_\tau^2 + \sigma \cdot b_\tau^1 - b_{\sigma\tau}^1 - b_{\sigma\tau}^2 = -b_{\sigma\tau}^2 + b_\sigma^2 + b_\sigma^1 + \sigma \cdot b_\tau^2 + \sigma \cdot b_\tau^1 - b_{\sigma\tau}^1, $$
+so that $ \delta_1\br{\xi_1 + \xi_2}\br{\sigma, \tau} = a_{\sigma, \tau} $. A short computation yields
+\begin{align*}
+\alpha\br{a_{\sigma, \tau} - a_{\sigma, \tau}^1 - a_{\sigma, \tau}^2}
+& = \alpha\br{a_{\sigma, \tau}} - \alpha\br{a_{\sigma, \tau}^1} - \alpha\br{a_{\sigma, \tau}^2} \\
+& = -b_{\sigma\tau}^2 + b_\sigma^2 + b_\sigma^1 + \sigma \cdot b_\tau^2 + \sigma \cdot b_\tau^1 - b_{\sigma\tau}^1 + b_{\sigma\tau}^1 - \sigma \cdot b_\tau^1 - b_\sigma^1 - \sigma \cdot b_\tau^2 - b_\sigma^2 + b_{\sigma\tau}^2 \\
+& = b_\sigma^1 + \sigma \cdot b_\tau^2 - b_\sigma^1 - \sigma \cdot b_\tau^2 \\
+& = \alpha\br{a}.
+\end{align*}
+The result follows by the verification
+$$ \sbr{\xi_1, \xi_2}\br{\sigma, \tau} = a = a_{\sigma, \tau} - a_{\sigma, \tau}^1 - a_{\sigma, \tau}^2 = \delta_1\br{\xi_1 + \xi_2}\br{\sigma, \tau} - \delta_1\br{\xi_1}\br{\sigma, \tau} - \delta_1\br{\xi_2}\br{\sigma, \tau}, $$
+since $ \alpha $ is injective.
+\end{proof}
+
+\pagebreak
+
+Considering $ G = \AG{F} $ and setting $ A = \overline{F}^\times $ and $ C = E\sbr{n} $, the quadratic behaviour of $ \HE[n]{F} $ is perhaps evident from the diagram in Lemma \ref{lem:cupcommutator}, but the construction entails defining the central extension $ B $, which will require defining the notion of a theta group.
+
+\begin{definition}
+An \textbf{$ F $-theta group} of level $ n $ for $ E $ is a central extension of $ E\br{F}\sbr{n} $ by $ F^\times $ such that its induced commutator pairing $ E\br{F}\sbr{n} \times E\br{F}\sbr{n} \to F^\times $ coincides with the $ n $-Weil pairing.
+\end{definition}
+
+While the general theory of theta groups in terms of invertible sheaves is extensively covered in the literature, for the purposes of defining the quadratic form in the remainder of this subsection, it suffices to provide an explicit construction of a specific theta group. Consider the set
+$$ \Theta \coloneqq \cbr{\br{P, f_P} \in E\sbr{n} \times \overline{F}\br{E}^\times \st \sbr{f_P} = n\sbr{P} - n\sbr{\OOO}}, $$
+equipped with operations $ \br{P, f_P} \cdot \br{P', f_{P'}} \coloneqq \br{P + P', f_{P + P'}} $ and $ \br{P, f_P}^{-1} \coloneqq \br{-P, f_{-P}} $, where
+$$ f_{P + P'} \coloneqq f_P \cdot \tau_P^*f_{P'}, \qquad f_{-P} \coloneqq \dfrac{1}{\tau_{-P}^*f_P}, $$
+and a distinguished identity $ \br{\OOO, x} \in \Theta $ for any $ x \in \overline{F}^\times $. Additionally, write $ \Theta\br{F} $ to denote the same set, but each instance of $ \overline{F} $ is replaced by $ F $, which is exactly the set of $ \AG{F} $-invariant elements.
+
+\begin{remark}
+In terms of line bundles, $ \Theta $ is a group scheme over $ F $ \cite[Section IV.23]{Mum70}, so the notation expressing its $ F $-rational points $ \Theta\br{F} $, as well as that of the cohomology group $ \H^1\br{F, \Theta} $, make sense.
+\end{remark}
+
+A priori, $ \Theta $ is only a pointed set, but its group axioms can be verified by manifesting it as a fibre product.
+
+\begin{proposition}
+\label{prop:thetagroup}
+There is a row-exact diagram of groups
+$$
+\begin{tikzcd}
+0 \arrow{r} & \overline{F}^\times \arrow{r}{\alpha} \arrow[leftrightarrow]{d}{=} & \Theta \arrow{r}{\beta} \arrow{d}{\zeta} & E\sbr{n} \arrow{r} \arrow{d}{\epsilon} & 0 \\
+0 \arrow{r} & \overline{F}^\times \arrow{r}[swap]{\gamma} & \GL_n \arrow{r}[swap]{\delta} & \PGL_n \arrow{r} & 0
+\end{tikzcd}.
+$$
+\end{proposition}
+
+\begin{proof}
+Let $ P, P' \in E\sbr{n} $ be points in general position, and let $ f_P, f_{P'} \in \overline{F}\br{E}^\times $ be their associated non-zero rational functions in $ \Theta $. The fact that $ \Theta $ is a group can be checked with the easy computation $ \sbr{\tau_P^*f_{P'}} = n\sbr{P + P'} - n\sbr{P} $, where the group operations are well-defined from verifying that
+$$ \sbr{f_{P + P'}} = n\sbr{P + P'} - n\sbr{\OOO}, \qquad \sbr{f_{-P}} = n\sbr{-P} - n\sbr{\OOO}, $$
+while the group axioms follow from expanding divisor terms and using the commutativity of $ E\sbr{n} $. Now define the inclusion map $ \alpha $ and the projection map $ \beta $ in the obvious way, and define the maps $ \gamma $ and $ \delta $ using the identification $ \PGL_n \cong \GL_n / \overline{F}^\times $. Then the translation map $ \tau_P : E \to E $ extends to a unique projective transformation $ \widehat{T_P} \in \PGL_n $ via the linear system $ \widehat{\LLL_n} : E \to \PP^{n - 1} $ such that the square
+$$
+\begin{tikzcd}
+E \arrow{r}{\widehat{\LLL_n}} \arrow[dashed]{d}{\sim}[swap]{\tau_P} & \PP^{n - 1} \arrow[dashed]{d}{\widehat{T_P}}[swap]{\sim} \\
+E \arrow{r}[swap]{\widehat{\LLL_n}} & \PP^{n - 1}
+\end{tikzcd},
+\qquad
+\begin{tikzcd}[column sep=small]
+Q \arrow[mapsto]{rr} \arrow[mapsto]{d} & & \widehat{\LLL_n}\br{Q} \arrow[mapsto]{d} \\
+P + Q \arrow[mapsto]{r} & \widehat{\LLL_n}\br{P + Q} \arrow[leftrightarrow]{r}{=} & \widehat{T_P}\widehat{\LLL_n}\br{Q}
+\end{tikzcd}
+$$
+commutes, so this equates to the existence of a well-defined homomorphism $ \epsilon $. Likewise, lifting $ \widehat{T_P} \in \PGL_n $ to a linear transformation $ T_P \in \GL_n $ via the linear system $ \LLL_n : E \to \overline{F}^n $ is unique up to a choice of a non-zero rational function $ f_P \in \overline{F}\br{E}^\times $. This is conveniently supplied by the second component of $ \Theta $, so this establishes a well-defined map $ \zeta $, which is also a homomorphism by construction. Finally, the commutativity of the left square follows from the fact that $ T_\OOO \in \GL_n $ is the identity matrix scaled by a non-zero constant, while the commutativity of the right square follows by the construction of $ \epsilon $ and $ \zeta $.
+\end{proof}
+
+\pagebreak
+
+It remains to prove that the induced commutator pairing coincides with the Weil pairing, after which the centrality of the group extension follows immediately, so that $ \Theta $ is an $ \overline{F} $-theta group of level $ n $ for $ E $.
+
+\begin{proposition}
+\label{prop:weilpairing}
+The commutator $ \sbr{-, -} : \Theta \times \Theta \to \Theta $ induces a pairing that coincides exactly with the $ n $-Weil pairing $ \e_n : E\sbr{n} \times E\sbr{n} \to \overline{F}^\times $. That is,
+$$ \sbr{x, y} = \alpha\br{\e_n\br{\beta\br{x}, \beta\br{y}}}, \qquad x, y \in \Theta. $$
+\end{proposition}
+
+\begin{proof}
+Let $ P, P' \in E\sbr{n} $ be points in general position, and let $ f_P, f_{P'} \in \overline{F}\br{E}^\times $ be their associated non-zero rational functions in $ \Theta $. The commutativity of $ E\sbr{n} $ immediately trivialises $ \sbr{P, P'} $, so it suffices to check that $ \sbr{f_P, f_{P'}} $ is constant and equal to $ \e_n\br{P, P'} $. By the definition of the group operation,
+$$ \sbr{f_P, f_{P'}} = f_{P + P' - P - P'} = \dfrac{f_P \cdot \tau_P^*f_{P'}}{\tau_{P'}^*f_P \cdot f_{P'}}, $$
+so a simple divisorial computation yields
+$$ \sbr{\sbr{f_P, f_{P'}}} = \br{n\sbr{P} - n\sbr{\OOO}} + \br{n\sbr{P + P'} - n\sbr{P}} - \br{n\sbr{P' + P} - n\sbr{P'}} - \br{n\sbr{P'} - n\sbr{\OOO}} = 0, $$
+which is equivalent to saying that $ \sbr{f_P, f_{P'}} \in \overline{F}^\times $. Now fix a point $ Q \in E $ in general position such that $ \cbr{\OOO, \pm P, \pm Q, \pm P \pm Q} $ are pairwise distinct. Applying the Abel-Jacobi map to the points $ P $ and $ P' $ gives linearly equivalent divisors $ \sbr{P} - \sbr{\OOO} \sim \sbr{Q + P} - \sbr{Q} $ and $ \sbr{P'} - \sbr{\OOO} \sim \sbr{Q + P'} - \sbr{Q} $ related via the line functions $ \L_{Q, P}, \L_{Q, P'} \in \overline{F}\br{E}^\times $, so another divisorial computation yields
+\begin{align*}
+\e_n\br{P, P'} = \widetilde{\e_n}\br{\sbr{Q + P} - \sbr{Q}, \sbr{Q + P'} - \sbr{Q}} = \dfrac{f_P\br{Q}f_{P'}\br{Q + P}}{f_P\br{Q + P'}f_{P'}\br{Q}} = \sbr{f_P, f_{P'}}\br{Q},
+\end{align*}
+which is well-defined and constant despite the choice of $ Q \in E $.
+\end{proof}
+
+\begin{remark}
+In explicit descent theory of elliptic curves, theta groups are also used to parameterise $ 1 $-cocycles of $ \HE[n]{F} $. It can be shown that every $ \overline{F} $-theta group of level $ n $ for $ E $ is a twist of $ \Theta $ \cite[Proposition 1.6]{Sto10}, and that $ E\sbr{n} $ is isomorphic to the group of automorphisms of central extensions of $ E\sbr{n} $ by $ \overline{F}^\times $. Thus the $ \overline{F} $-theta groups of level $ n $ for $ E $, viewed as twists of $ \Theta $, exactly parameterise the $ 1 $-cocycles of $ \HE[n]{F} $ up to $ F $-isomorphism, by the twisting principle. Proving these facts is not difficult, but will be skipped for a more useful description in terms of Brauer-Severi diagrams to be described in the next subsection.
+\end{remark}
+
+Applying non-abelian Galois cohomology to the diagram in Proposition \ref{prop:thetagroup}, taking into account the $ \AG{F} $-group structure of $ \Theta $, induces a long row-exact diagram of cohomology pointed sets, so truncating this at the second connecting homomorphism furnishes a commutative square
+$$
+\begin{tikzcd}
+\HE[n]{F} \arrow{r}{\Ob_F} \arrow{d}[swap]{\H^1\br{F, \epsilon}} & \Br F \arrow[leftrightarrow]{d}{=} \\
+\H^1\br{F, \PGL_n} \arrow[hookrightarrow]{r}[swap]{\delta_1} & \Br F
+\end{tikzcd},
+$$
+where the composition $ \Ob_F $ will be called the \textbf{period-index obstruction}. By the description of the homomorphism $ \epsilon $, this is the induced map on cohomology that takes an automorphism $ \sigma \in \AG{F} $ and sends a point $ P_\sigma \in E\sbr{n} $ to a projective transformation $ \widehat{T_{P_\sigma}} \in \PGL_n $, embedded into $ \Br F $.
+
+\begin{remark}
+There are several interpretations of this map, one of which says that it measures the failure of elements in $ \HE[n]{F} $ to be mappable into $ \PP^{n - 1} $, and will be clear after discussing Brauer-Severi diagrams. Another interpretation that bestows the name of this map says that it measures the failure of the \textbf{period} of an $ F $-torsor, its order in the torsion group $ \HE{F} $, to be equal to its \textbf{index}, the smallest degree of a line bundle on it that is definable over $ F $. In particular, the period of a torsor always divides the index, and in many cases these quantities are equal, but there are examples where they differ \cite[Section 1]{ONe01}.
+\end{remark}
+
+Returning to the relevant case of $ F = K_v $ for a fixed place $ v \in \VVV_K $, it follows that $ \HE[n]{K_v} $ can be equipped with a quadratic map, the local period-index obstruction $ \Ob_{K_v} : \HE[n]{K_v} \to \Br K_v \hookrightarrow \QQ / \ZZ $.
+
+\pagebreak
+
+\begin{corollary}
+\label{cor:localquadratic}
+The local period-index obstruction is quadratic. That is,
+$$ \function{\HE[n]{K_v} \times \HE[n]{K_v}}{\Br K_v \hookrightarrow \QQ / \ZZ}{\br{\xi_1, \xi_2}}{\Ob_{K_v}\br{\xi_1 + \xi_2} - \Ob_{K_v}\br{\xi_1} - \Ob_{K_v}\br{\xi_2}} $$
+is a symmetric $ \ZZ $-bilinear pairing.
+\end{corollary}
+
+\begin{proof}
+Since the cup product and the commutator are both $ \ZZ $-bilinear, and that the alternativity introduced by both pairings cancel out to establish symmetry, this follows immediately from Lemma \ref{lem:cupcommutator}.
+\end{proof}
+
+It is worth noting that if a submodule of $ \HE[n]{K_v} $ is totally isotropic, so that this bilinear pairing is the zero map, then the local period-index obstruction is a homomorphism when restricted to this submodule. By making use of the specific $ \overline{K_v} $-theta group $ \Theta $, this map can also be shown to be a quadratic form.
+
+\begin{proposition}
+\label{prop:localeven}
+The local period-index obstruction is even. That is,
+$$ \Ob_{K_v}\br{\xi} = \Ob_{K_v}\br{-\xi}, \qquad \xi \in \HE[n]{K_v}. $$
+\end{proposition}
+
+\begin{proof}
+Consider the inversion of $ \Theta $ defined by
+\begin{align*}
+-\Theta
+& \coloneqq \cbr{\br{P, f_P}^{-1} \in E\sbr{n} \times \overline{K_v}\br{E}^\times \st \sbr{f_P} = n\sbr{P} - n\sbr{\OOO}} \\
+& = \cbr{\br{-P, f_{-P}} \in E\sbr{n} \times \overline{K_v}\br{E}^\times \st \sbr{f_{-P}} = n\sbr{-P} - n\sbr{\OOO}},
+\end{align*}
+which is clearly isomorphic to $ \Theta $ by the inversion map $ \iota : E \to E $. Defining the inverted map $ -\alpha : \overline{K_v}^\times \to -\Theta $ in the obvious way furnishes a row-exact diagram of groups
+$$
+\begin{tikzcd}
+0 \arrow{r} & \overline{K_v}^\times \arrow{r}{\alpha} \arrow[leftrightarrow]{d}{=} & \Theta \arrow{r}{\beta} \arrow{d}{\iota} & E\sbr{n} \arrow{r} \arrow{d}{\iota} & 0 \\
+0 \arrow{r} & \overline{K_v}^\times \arrow{r}[swap]{-\alpha} & -\Theta \arrow{r}[swap]{\beta} & E\sbr{n} \arrow{r} & 0
+\end{tikzcd},
+$$
+both rows of which induce the period-index obstruction on cohomology, by Proposition \ref{prop:thetagroup}. Thus the $ \delta $-functoriality of non-abelian Galois cohomology establishes a commutative square of pointed sets
+$$
+\begin{tikzcd}
+\HE[n]{K_v} \arrow{r}{\Ob_{K_v}} \arrow[swap]{d}{\H^1\br{K_v, \iota}} & \Br K_v \arrow[leftrightarrow]{d}{=} \\
+\HE[n]{K_v} \arrow[swap]{r}{\Ob_{K_v}} & \Br K_v
+\end{tikzcd},
+$$
+so that $ \Ob_{K_v} = \Ob_{K_v} \circ \H^1\br{K_v, \iota} $.
+\end{proof}
+
+\begin{remark}
+As the proofs of Corollary \ref{cor:localquadratic} and Proposition \ref{prop:localeven} did not use any facts about local fields, the same arguments and statements generalise to a general field $ F $, provided the notion of a quadratic form taking values on an arbitrary abelian group is appropriately defined.
+\end{remark}
+
+Thus $ \HE[n]{K_v} $, equipped with the local period-index obstruction, is indeed a quadratic $ \ZZ / n $-module. It then follows from local duality that it is also non-degenerate.
+
+\begin{corollary}
+\label{cor:localnondegenerate}
+The quadratic $ \ZZ / n $-module $ \HE[n]{K_v} $ is non-degenerate. That is,
+$$ \function{\HE[n]{K_v}}{\HE[n]{K_v}^\star}{\xi_1}{\br{\xi_2 \mapsto \Ob_{K_v}\br{\xi_1 + \xi_2} - \Ob_{K_v}\br{\xi_1} - \Ob_{K_v}\br{\xi_2}}} $$
+is an isomorphism of abelian groups.
+\end{corollary}
+
+\begin{proof}
+The induced commutator pairing coincides with the non-degenerate $ n $-Weil pairing by Proposition \ref{prop:weilpairing}, while the non-degeneracy of the cup product follows by Tate's local duality for $ E\sbr{n} $, and these exactly constitute the period-index obstruction by Lemma \ref{lem:cupcommutator}.
+\end{proof}
+
+Summing over all local period-index obstructions yields a global quadratic form, so that the full first adelic cohomology group $ \HE[n]{\AA_K} $ is the desired ambient quadratic $ \ZZ / n $-module, but the map obtained is \textit{a priori} not a well-defined sum, and proving this will be an immediate consequence in the next subsection.
+
+\pagebreak
+
+\subsection{Lagrangian submodules and weak metabolicity}
+
+This subsection continues the proof by establishing the Lagrangian conditions for $ \im \kappa $ and $ \im \lambda $, and deducing that $ \HE[n]{\AA_K} $ is a well-defined non-degenerate quadratic $ \ZZ / n $-module. The proof follows the arguments in the paper on random maximal isotropic subspaces by Poonen and Rains \cite{PR12}, but a more elementary proof is provided as an alternative to a key result in their paper. The alternative proof is based on the notion of Brauer-Severi diagrams, as detailed in the paper on explicit descent on elliptic curves by Cremona, Fisher, O'Neil, Simon, and Stoll \cite{CFOSS06}, with some arguments sketched from O'Neil's paper on the period-index obstruction \cite{ONe01}. This is an abstract construct, extending the notion of Brauer-Severi varieties, with group of automorphisms isomorphic to $ E\sbr{n} $, hence parameterising $ \HE[n]{F} $ through the twisting principle. In what follows, let dashed arrows denote $ \overline{F} $-isomorphisms.
+
+\begin{definition}
+An \textbf{$ F $-Brauer-Severi diagram} $ \sbr{\phi} $ of dimension $ n $ for $ E $ is an $ F $-morphism $ \phi : C \to V $ from an $ F $-torsor $ C \in \WC{F}\sbr{n} $ to an $ F $-Brauer-Severi variety $ V \in \Twist{\PP^{n - 1}}{F} $ such that the square
+$$
+\begin{tikzcd}
+C \arrow{r}{\phi} \arrow[dashed]{d}{\sim}[swap]{\phi_C} & V \arrow[dashed]{d}{\phi_V}[swap]{\sim} \\
+E \arrow{r}[swap]{\widehat{\LLL_n}} & \PP^{n - 1}
+\end{tikzcd}
+$$
+commutes. Two $ F $-Brauer-Severi diagrams $ \sbr{\phi : C \to V} $ and $ \sbr{\phi' : C' \to V'} $ of dimension $ n $ for $ E $ are considered \textbf{equivalent} if there is a pair $ \br{\psi_{CC'}, \psi_{VV'}} $, consisting of an $ F $-isomorphism of $ F $-torsors $ \psi_{CC'} : C \xrightarrow{\sim} C' $ and an $ F $-isomorphism of varieties $ \psi_{VV'} : V \xrightarrow{\sim} V' $, such that the diagram
+$$
+\begin{tikzcd}
+C \arrow{rrr}{\phi} \arrow[dashed]{dr}{\phi_C}[swap]{\sim} \arrow{ddd}{\sim}[swap]{\psi_{CC'}} & & & V \arrow[dashed]{dl}{\sim}[swap]{\phi_V} \arrow{ddd}{\psi_{VV'}}[swap]{\sim} \\
+& E \arrow{r}{\widehat{\LLL_n}} \arrow[dashed]{d}{\sim}[swap]{\tau_P} & \PP^{n - 1} \arrow[dashed]{d}{\widehat{T}}[swap]{\sim} & \\
+& E \arrow{r}[swap]{\widehat{\LLL_n}} & \PP^{n - 1} & \\
+C' \arrow[dashed]{ur}{\sim}[swap]{\phi_{C'}} \arrow{rrr}[swap]{\phi'} & & & V' \arrow[dashed]{ul}{\phi_{V'}}[swap]{\sim}
+\end{tikzcd}
+$$
+commutes, for some point $ P \in E $ and some projective transformation $ \widehat{T} \in \PGL_n $. Finally, define the set
+$$ \BS{F} \coloneqq \cbr{\text{$ F $-Brauer-Severi diagrams of dimension} \ n \ \text{for} \ E \ \text{modulo equivalence}}, $$
+pointed at a distinguished identity, abusively denoted $ \LLL \coloneqq \sbr{\widehat{\LLL_n}} $, given by the linear system $ \widehat{\LLL_n} : E \to \PP^{n - 1} $.
+\end{definition}
+
+Conceptually, given any morphism $ \phi : C \to V $ of $ F $-twists $ C \in \WC{F}\sbr{n} $ and $ V \in \Twist{\PP^{n - 1}}{F} $, the $ F $-Brauer-Severi diagram $ \sbr{\phi} $ can be viewed as an $ F $-twist of $ \LLL $, so applying the twisting principle to $ \BS{F} $ would result in the group $ \HE[n]{F} $. A formal proof of this entails a bit more work.
+
+\begin{proposition}
+\label{prop:bsisomorphism}
+There is an isomorphism of abelian groups
+$$ E\sbr{n} \xrightarrow{\sim} \Aut \LLL, $$
+where $ \Aut \LLL $ denotes the group of automorphisms of $ \LLL $.
+\end{proposition}
+
+\begin{proof}
+An element $ P \in E\sbr{n} $ supplies an automorphism of $ F $-torsors $ \tau_P : E \to E $ that uniquely extends to an automorphism of varieties $ \widehat{T_P} : \PP^{n - 1} \to \PP^{n - 1} $, making the diagram commute as argued previously, and hence giving a well-defined automorphism $ \br{\tau_P, \widehat{T_P}} \in \Aut \LLL $. Conversely, an automorphism $ \br{\tau_P, \widehat{T}} \in \Aut \LLL $ consists of a translation map $ \tau_P : E \to E $ for some point $ P \in E $ that automatically fixes the unique projective transformation $ \widehat{T} = \widehat{T_P} \in \PGL_n $, which in turn gives a linear equivalence $ n\sbr{\OOO} \sim n\sbr{P} $. Thus there is a well-defined bijection of pointed sets sending $ P $ to $ \br{\tau_P, \widehat{T_P}} $, which is a homomorphism by construction.
+\end{proof}
+
+\pagebreak
+
+The twisting principle now heuristically relates $ \BS{F} $ and $ \HE[n]{F} $, although a constructive sketch of the proof will be useful to define the correspondence explicitly.
+
+\begin{proposition}
+\label{prop:bscorrespondence}
+There is a bijective correspondence of pointed sets
+$$ \bijection{\BS{F}}{\HE[n]{F}}{\sbr{\phi : C \to V}}{\br{\sigma \mapsto P_\sigma}}, $$
+for a unique point $ P_\sigma \in E\sbr{n} $, which supplies $ \BS{F} $ with the structure of an abelian group.
+\end{proposition}
+
+\begin{proof}
+Given an $ F $-Brauer-Severi diagram $ \sbr{\phi : C \to V} \in \BS{F} $, consider a sufficiently large finite Galois extension $ F' $ over $ F $ such that $ C\br{F'} \ne \emptyset $, so that, by taking direct limits over all such $ F' $, the result reduces to constructing a unique corresponding $ 1 $-cocycle in $ \H^1\br{F' / F, E\br{F'}\sbr{n}} $. Now sending a fixed $ F' $-rational point in $ C $ to $ \OOO \in E $ yields an $ F' $-isomorphism $ \phi_{C\br{F'}} : C\br{F'} \xrightarrow{\sim} E\br{F'} $, which, viewed as a self-translation map, uniquely extends to an $ F' $-isomorphism $ \phi_{V\br{F'}} : V\br{F'} \xrightarrow{\sim} \PP^{n - 1}\br{F'} $ such that the square
+$$
+\begin{tikzcd}
+C\br{F'} \arrow{r} \arrow{d}[swap]{\phi_{C\br{F'}}} & V\br{F'} \arrow{d}{\phi_{V\br{F'}}} \\
+E\br{F'} \arrow{r} & \PP^{n - 1}\br{F'}
+\end{tikzcd}
+$$
+commutes. Thus the $ 1 $-cocycle in $ \H^1\br{F' / F, E\br{F'}\sbr{n}} $ sending an automorphism $ \sigma \in \Gal\br{F' / F} $ to the automorphism of $ F $-Brauer-Severi diagrams $ \br{\tau_{P_\sigma}, \widehat{T_{P_\sigma}}} \coloneqq \br{\sigma \cdot \phi_{C\br{F'}} \circ \phi_{C\br{F'}}^{-1}, \sigma \cdot \phi_{V\br{F'}} \circ \phi_{V\br{F'}}^{-1}} \in \Aut \LLL\br{F'} $ is unique, and corresponds to a point $ P_\sigma \in E\br{F'}\sbr{n} $ by the finite version of Proposition \ref{prop:bsisomorphism}.
+\end{proof}
+
+With the correspondence in Proposition \ref{prop:bscorrespondence}, two forgetful maps can be constructed on $ \BS{F} $. One map simply forgets the right half of the diagram containing the $ F $-Brauer-Severi variety, by sending
+$$ \function{\BS{F}}{\WC{F}\sbr{n}}{\sbr{\phi : C \to V}}{C}, $$
+which is a homomorphism that corresponds to the right map $ \HE[n]{F} \to \HE{F}\sbr{n} $ in the Kummer sequence. The other map simply forgets the left half of the diagram containing the $ F $-torsor, by sending
+$$ \function{\BS{F}}{\Twist{\PP^{n - 1}}{F}}{\sbr{\phi : C \to V}}{V}, $$
+which is only a map of pointed sets. To summarise, all of the aforementioned bijective correspondences, alongside the period-index obstruction, fit in a diagram of pointed sets
+$$
+\begin{tikzcd}
+& & \BS{F} \arrow[leftrightarrow]{r}{\sim} \arrow{dl} \arrow{d} & \HE[n]{F} \arrow{dr}{\Ob_F} & \\
+\HE{F}\sbr{n} \arrow[leftrightarrow]{r}[swap]{\sim} & \WC{F}\sbr{n} \arrow{r}[swap]{\phi} & \Twist{\PP^{n - 1}}{F} \arrow[leftrightarrow]{r}[swap]{\sim} & \H^1\br{F, \PGL_n} \arrow[hookrightarrow]{r} & \Br F
+\end{tikzcd}.
+$$
+It turns out that the right trapezium actually commutes, which says that the second forgetful map coincides exactly with the period-index obstruction, so the characterisation using theta groups also carry over.
+
+\begin{proposition}
+\label{prop:bsobstruction}
+The period-index obstruction $ \Ob_F : \HE[n]{F} \to \Br F $ maps an $ F $-Brauer-Severi diagram $ \sbr{\phi : C \to V} \in \BS{F} $ to its $ F $-Brauer-Severi variety $ V \in \Twist{\PP^{n - 1}}{F} $.
+\end{proposition}
+
+\begin{proof}
+Let $ \sigma \in \AG{F} $ be a fixed automorphism. A $ 1 $-cocycle $ \xi \in \HE[n]{F} $ mapping $ \sigma $ to a point $ P_\sigma \in E\sbr{n} $ sends $ \sigma $ to the automorphism of $ F $-Brauer-Severi diagrams $ \br{\tau_{P_\sigma}, \widehat{T_{P_\sigma}}} \in \Aut \LLL $, by the description in Proposition \ref{prop:bscorrespondence}. The second forgetful map then corresponds to sending this pair to the automorphism of varieties $ \widehat{T_{P_\sigma}} : \PP^{n - 1} \to \PP^{n - 1} $, so this is in fact a $ 1 $-cocycle $ \xi \in \H^1\br{F, \PGL_n} \hookrightarrow \Br F $ that maps $ \sigma $ to a projective transformation $ \widehat{T_{P_\sigma}} \in \PGL_n $, which coincides exactly with the description of $ \Ob_F $.
+\end{proof}
+
+\pagebreak
+
+\begin{remark}
+Interestingly, an interpretation of $ n $-Selmer group can be read off almost immediately from the construction of Brauer-Severi diagrams. In particular, there is a bijective correspondence of pointed sets
+$$ \Sel[n] \quad \leftrightsquigarrow \quad \cbr{\sbr{\phi : C \to \PP^{n - 1}} \in \BS{K} \st \forall v \in \VVV_K, \ C\br{K_v} \ne \emptyset} \subseteq \BS{K}, $$
+so the latter subset also inherits a subgroup structure. This correspondence is an immediate consequence of the fundamental sequence of global class field theory and a simple diagram chase.
+\end{remark}
+
+Returning to the original objective of proving weak metabolicity, first consider the case of $ F = K_v $ for a fixed place $ v \in \VVV_K $. For ease of notation, denote the left map in the local Kummer sequence by
+$$ \kappa_v : \En{K_v} \hookrightarrow \HE[n]{K_v}, $$
+so that the adelic injection $ \kappa $ is a direct product of the local injections $ \kappa_v $. Proving that $ \im \kappa_v $ is a Lagrangian submodule of $ \HE[n]{K_v} $ reduces to proving total isotropy and maximality, but total isotropy follows from relating the period-index obstruction to the various correspondences of Brauer-Severi diagrams.
+
+\begin{proposition}
+\label{prop:localisotropic}
+The submodule $ \im \kappa_v $ is totally isotropic. That is,
+$$ \im \kappa_v \subseteq \ker \Ob_{K_v}. $$
+\end{proposition}
+
+\begin{proof}
+Along with the local Kummer sequence, consider the diagram of pointed sets
+$$
+\begin{tikzcd}
+0 \arrow{r} & \En{K_v} \arrow{r}{\kappa_v} \arrow[dashed]{dd}[swap]{\Ob_{K_v}} & \HE[n]{K_v} \arrow{r}{\mu_v} \arrow[leftrightarrow]{d}[swap]{\sim} & \HE{K_v}\sbr{n} \arrow{r} \arrow[leftrightarrow]{d}{\sim} & 0 \\
+& & \BS{K_v} \arrow{r}[swap]{\mu_v'} & \WC{K_v}\sbr{n} \arrow{d}{\phi} & \\
+& \Br K_v & \H^1\br{K_v, \PGL_n} \arrow[hookrightarrow]{l} & \Twist{\PP^{n - 1}}{K_v} \arrow[leftrightarrow]{l}{\sim} &
+\end{tikzcd},
+$$
+which commutes by Proposition \ref{prop:bsobstruction}, where the dashed arrow denotes the induced map restricted to $ \En{K_v} $. Then $ \im \kappa_v $ is exactly the kernel of $ \mu_v $, which corresponds to that of the forgetful map $ \mu_v' $. On the other hand, this sends a $ K_v $-Brauer-Severi diagram $ \sbr{\phi : C \to V} \in \BS{K_v} $ to its $ K_v $-torsor $ C \in \WC{K_v}\sbr{n} $, which corresponds to the trivial class in $ \HE[n]{K_v} $ if and only if $ C\br{K_v} \ne \emptyset $. Applying the $ K_v $-morphism $ \phi : C \to V $ also forces $ V\br{K_v} \ne \emptyset $, which holds precisely when its $ K_v $-Brauer-Severi variety $ V \in \Twist{\PP^{n - 1}}{K_v} $ corresponds to the trivial class in $ \H^1\br{K_v, \PGL_n} $. Thus any element of $ \im \kappa_v $ is sent via the period-index obstruction to the trivial class in $ \Br K_v $.
+\end{proof}
+
+\begin{remark}
+The proof of Proposition \ref{prop:localisotropic} is independent of locality, and would work for a general field $ F $.
+\end{remark}
+
+In a similar vein as before, proving maximality does utilise local duality.
+
+\begin{proposition}
+\label{prop:localmaximal}
+The submodule $ \im \kappa_v $ is maximal. That is,
+$$ \im \kappa_v = \br{\im \kappa_v}^\perp. $$
+\end{proposition}
+
+\begin{proof}
+Consider the long exact sequence of cohomology groups inducing the local Kummer sequence
+$$ \dots \to E\br{K_v} \xrightarrow{\kappa_v} \HE[n]{K_v} \to \HE{K_v} \to \dots, $$
+so that $ \im \kappa_v $ is simultaneously the image of $ E\br{K_v} $ and of $ \En{K_v} $ inside $ \HE[n]{K_v} $. By Tate's local duality for $ E\sbr{n} $, their Pontryagin dual maps are $ \HE[n]{K_v} \to E\br{K_v}^\star $ and $ \HE[n]{K_v} \to \br{\En{K_v}}^\star $ respectively, whose kernels are both $ \br{\im \kappa_v}^\perp $. It then suffices to identify $ \HE{K_v} $ with $ E\br{K_v}^\star $ or $ \br{\En{K_v}}^\star $, after which the result follows by exactness, and doing this entails splitting into cases depending on the place $ v \in \VVV_K $. The non-archimedean case follows immediately by Tate's local duality for elliptic curves. In the archimedean case of $ \CC $, completeness implies that $ \En{\CC} = 0 $, while connectedness implies that $ \pi_0\br{E\br{\CC}} = 0 $, but the Pontryagin dual of the latter is exactly $ \HE{\CC} $. Likewise, in the archimedean case of $ \RR $, completeness implies that $ \En{\RR} \cong \ZZ / 2 $ whenever $ n $ is even, which is equal to $ \pi_0\br{E\br{\CC}} \cong \ZZ / 2 $, so Tate's local duality for elliptic curves applies again. The previous argument fails when $ n $ is odd, but in this case $ \HE[n]{\RR} $ is simultaneously $ 2 $-torsion, by virtue of $ \Gal\br{\CC / \RR} $, and $ n $-torsion, by virtue of $ E\sbr{n} $, so it is in fact trivial. Thus $ \im \kappa_v $ and $ \br{\im \kappa_v}^\perp $ are both trivial and the result follows.
+\end{proof}
+
+\pagebreak
+
+Recall that the restricted product of weakly metabolic quadratic $ \ZZ / n $-modules with respect to their Lagrangian submodules is naturally also weakly metabolic. Now apply this to $ \HE[n]{\AA_K} $, which was defined to be the restricted product of $ \HE[n]{K_v} $ with respect to $ \H_\u^1\br{K_v, E\sbr{n}} $.
+
+\begin{corollary}
+\label{cor:quadraticmodule}
+The ambient module $ \HE[n]{\AA_K} $, equipped with the quadratic form
+$$ \function[\qqq]{\HE[n]{\AA_K}}{\QQ / \ZZ}{\br{\xi_v}_{v \in \VVV_K}}{\displaystyle\sum_{v \in \VVV_K} \inv_{K_v}\br{\Ob_{K_v}\br{\xi_v}}} $$
+is a well-defined non-degenerate quadratic $ \ZZ / n $-module.
+\end{corollary}
+
+\begin{proof}
+Since the local Hasse invariant is a homomorphism, the fact that it is a non-degenerate quadratic $ \ZZ / n $-module follows immediately from properties of the local period-index obstruction in Corollary \ref{cor:localnondegenerate}, so it suffices to verify that it is a well-defined finitary sum, but this also follows from Proposition \ref{prop:localisotropic} and that $ \im \kappa_v \cong \En{K_v} \cong \H_\u^1\br{K_v, E\sbr{n}} $ for all but finitely many places $ v \in \VVV_K $.
+\end{proof}
+
+With a well-defined quadratic $ \ZZ / n $-module, it now makes sense for its submodules to be Lagrangian.
+
+\begin{corollary}
+\label{cor:locallagrangian}
+The submodule $ \im \kappa $ is Lagrangian. That is,
+$$ \im \kappa \subseteq \ker \qqq, \qquad \im \kappa = \br{\im \kappa}^\perp. $$
+\end{corollary}
+
+\begin{proof}
+This follows immediately from taking direct products of the local components in Proposition \ref{prop:localisotropic} and Proposition \ref{prop:localmaximal}, together with the definition of the quadratic form in Corollary \ref{cor:quadraticmodule}.
+\end{proof}
+
+Thus this establishes that $ \HE[n]{\AA_K} $ is weakly metabolic. Now the bulk of the work in this subsection deals with the submodule $ \im \kappa $, while the fact that the submodule $ \im \lambda $ is Lagrangian is almost an immediate consequence of global class field theory and Tate's global duality.
+
+\begin{proposition}
+\label{prop:globallagrangian}
+The submodule $ \im \lambda $ is Lagrangian. That is,
+$$ \im \lambda \subseteq \ker \qqq, \qquad \im \lambda = \br{\im \lambda}^\perp. $$
+\end{proposition}
+
+\begin{proof}
+The fundamental sequence of global class field theory induces a row-exact diagram of abelian groups
+$$
+\begin{tikzcd}
+& \HE[n]{K} \arrow{r}{\lambda} \arrow{d}[swap]{\Ob_K} & \HE[n]{\AA_K} \arrow{d}[swap]{\sum \Ob_{K_v}} \arrow{dr}{\qqq} & & \\
+0 \arrow{r} & \Br K \arrow{r} & \displaystyle\bigoplus_{v \in \VVV_K} \Br K_v \arrow{r} & \QQ / \ZZ \arrow{r} & 0
+\end{tikzcd},
+$$
+which commutes by $ \delta $-functoriality of Galois cohomology. Here, the composition $ \qqq \circ \lambda $ factors through the global period-index obstruction, and $ \im \lambda $ is sent to the trivial class in $ \QQ / \ZZ $ upon summing the local Hasse invariants. Hence $ \im \lambda $ is contained in $ \ker \qqq $, while for the equality of $ \im \lambda $ and $ \br{\im \lambda}^\perp $, extract the middle terms of the Poitou-Tate exact sequence to establish exactness at
+$$ \HE[n]{K} \xrightarrow{\tau^1} \HE[n]{\AA_K} \cong \HE[n]{\AA_K}^\star \xrightarrow{\sigma^1} \HE[n]{K}^\star. $$
+The result then follows by identifying $ \lambda = \tau^1 $ and its Pontryagin dual map $ \lambda^\star = \sigma^1 $.
+\end{proof}
+
+With more work, it can be shown that $ \im \kappa $ is also a direct summand, hence further establishing strong metabolicity, and that $ \im \lambda $ is often a direct summand, at least for almost all elliptic curves. Describing when $ \im \lambda $ is a direct summand would be more enlightening after writing down the explicit assumption in the following subsection, so the proof of strong metabolicity will be delayed to after the following subsection.
+
+\pagebreak
+
+\subsection{Triviality of the first Tate-Shafarevich group}
+
+The aim of this subsection is to attain a frequently applicable criterion for the vanishing of the first Tate-Shafarevich group $ \Sha[K, E\sbr{n}] $ when $ n = p^e \in \NN^+ $ is a prime power. The overall proof is a purely algebraic computation, detailing the arithmetic justification in the paper on modelling distributions of elliptic curves by Bhargava, Kane, Lenstra, Poonen, and Rains \cite{BKLPR15}. This will involve a long-winded series of inflation-restriction exact sequences, beginning with the reduction to a more workable cohomology group.
+
+Given a finite $ \AG{K} $-module $ A $, its $ \AG{K} $-action induces a homomorphism
+$$ \rho_A : \AG{K} \to \Aut A. $$
+On the other hand, any subgroup $ G \le \im \rho_A $ induces natural restriction maps
+$$ \res_G : \H^m\br{\im \rho_A, A} \to \H^m\br{G, A}, \qquad m \in \NN, $$
+where $ A $ is now considered as a finite $ \im \rho_A $-module. Considering the direct sum of such restriction maps over all cyclic subgroups furnishes the $ m $-th \textbf{cyclic cohomology} groups
+$$ \H_\c^m\br{\im \rho_A, A} \coloneqq \ker \br{\bigoplus \res_C : \H^m\br{\im \rho_A, A} \to \bigoplus_{C \le \im \rho_A \ \text{cyclic}} \H^m\br{C, A}}, \qquad m \in \NN. $$
+The first result reduces the vanishing of the first Tate-Shafarevich group to a cyclic cohomology group.
+
+\begin{lemma}
+\label{lem:cyclicimage}
+Let $ A $ be a finite $ \im \rho_A $-module. Then there is a monomorphism
+$$ \Sha[K, A] \hookrightarrow \H_\c^1\br{\im \rho_A, A}. $$
+\end{lemma}
+
+\begin{proof}
+For this proof, write $ R \coloneqq \im \rho_A $. The first isomorphism theorem gives an isomorphism of finite groups $ R \cong \AG{K} / \ker \rho_A $, so the finite version of the Galois correspondence applies to identify $ R \cong \Gal\br{L / K} $ for some fixed finite Galois extension $ L $ over $ K $. Then the inflation-restriction exact sequence applied to the finite Galois group $ \AG{K} / \Gal\br{\overline{K} / L} \cong \Gal\br{L / K} $ yields
+$$ 0 \to \H^1\br{R, A} \xrightarrow{\inf} \H^1\br{K, A} \xrightarrow{\res} \H^1\br{L, A}, $$
+where $ A^{\Gal\br{\overline{K} / L}} = A $ since $ \Gal\br{\overline{K} / L} $ acts trivially on $ A $ by assumption. Now each place $ v \in \VVV_K $ extends to a choice of a place $ w \in \VVV_L $, so applying the same argument everywhere locally yields
+$$ 0 \to \PV\H^1\br{R_v, A} \xrightarrow{\prod \inf_v} \PV\H^1\br{K_v, A} \xrightarrow{\prod \res_v} \PV\H^1\br{L_w, A}, $$
+where $ R_v \coloneqq \Gal\br{L_w / K_v} $. Then combining both sequences with the obvious restriction maps and extracting the first few terms through the snake lemma, by definition, establishes a left exact sequence of abelian groups
+$$ 0 \to \Sha[L / K, A] \to \Sha[K, A] \to \Sha[L, A]. $$
+By Chebotarev's density theorem, any cyclic subgroup of $ R $ is isomorphic to a local Galois group $ R_v $ for some non-archimedean place $ v \in \VVV_K^0 $, so there is a monomorphism $ \Sha[L / K, A] \hookrightarrow \H_\c^1\br{R, A} $. On the other hand, any homomorphism $ \Gal\br{\overline{K} / L} \to A $ that becomes trivial upon restriction to all cyclic subgroups $ C \le \Gal\br{\overline{K} / L} $ must also be trivial, so the direct sum of such restriction maps $ \res_C : \H^1\br{L, A} \to \H^1\br{C, A} $ has trivial kernel. Thus Chebotarev's density theorem applies again to these cyclic subgroups for the triviality of $ \Sha[L, A] $, and the desired monomorphism is the composition $ \Sha[K, A] \cong \Sha[L / K, A] \hookrightarrow \H_\c^1\br{R, A} $.
+\end{proof}
+
+More explicitly, the vanishing of $ \Sha[K, A] $ simply reduces to the injectivity of the restriction map $ \res_C : \H^1\br{\im \rho_A, A} \to \H^1\br{C, A} $ for at least one cyclic subgroup $ C \le \im \rho_A $. Returning to the relevant case of the $ n $-torsion subgroup $ E\sbr{n} $, the induced homomorphism $ \rho_{E\sbr{n}} : \AG{K} \to \GL_2\br{\ZZ / n} $ is really a two-dimensional modulo $ n $ Galois representation, and triviality holds unconditionally when $ n = p $ is prime.
+
+\pagebreak
+
+\begin{proposition}
+\label{prop:vanishingbase}
+$$ \Sha[K, E\sbr{p}] = 0. $$
+\end{proposition}
+
+\begin{proof}
+For this proof, write $ R \coloneqq \im \rho_{E\sbr{p}} $. By Lemma \ref{lem:cyclicimage}, it suffices to show that the induced restriction map $ \res_C : \HE[p]{R} \to \HE[p]{C} $ is injective for some cyclic subgroup $ C \le R $. If $ p \nmid \#R $, the group $ \HE[p]{R} $ is trivially annihilated by $ p $ and the restriction map is vacuously injective, so now assume that $ p \mid \#R $. Since $ \#\GL_2\br{\FF_p} = p\br{p + 1}\br{p - 1}^2 $, by the Sylow theorems, the unique conjugacy class of $ p $-Sylow subgroups of $ \GL_2\br{\FF_p} \cong \Aut \FF_p^2 \cong \Aut E\sbr{p} $ precisely coincides with its cyclic subgroups of order $ p $, and at least one such subgroup $ C \le \GL_2\br{\FF_p} $ is also contained in $ R $ by assumption. Thus the result follows from the injectivity of restriction maps on $ p $-Sylow subgroups.
+\end{proof}
+
+To prove the injectivity of the restriction map in the general case of $ n = p^e $ entails further work, and the upcoming proof works only under the mild assumption that $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $, which begins with another reduction to a cyclic cohomology group.
+
+\begin{lemma}
+\label{lem:cyclicspecial}
+Assume that $ \SL_2\br{\ZZ / n} \le \im \rho_{E\sbr{n}} $. Then there is a monomorphism
+$$ \Sha[K, E\sbr{n}] \hookrightarrow \H_\c^1\br{\SL_2\br{\ZZ / n}, E\sbr{n}}. $$
+\end{lemma}
+
+\begin{proof}
+For this proof, write $ R \coloneqq \im \rho_{E\sbr{n}} $ and $ S \coloneqq \SL_2\br{\ZZ / n} $, so the assumption reads $ S \hookrightarrow R $. The inflation-restriction exact sequence applied to $ R / S $ yields
+$$ 0 \to \H^1\br{R / S, E\sbr{n}^S} \xrightarrow{\inf} \HE[n]{R} \xrightarrow{\res} \HE[n]{S}. $$
+Any $ S $-invariant element of $ E\sbr{n} \cong \br{\ZZ / n}^2 $ is in particular fixed by $ \twobytwosmall{1}{1}{0}{1}, \twobytwosmall{1}{0}{1}{1} \in S $, which can only be the trivial element of $ \br{\ZZ / n}^2 $, so the invariant subgroup $ E\sbr{n}^S $, and hence $ \H^1\br{R / S, E\sbr{n}^S} $, is trivial. Thus the restriction map is injective, and the desired monomorphism is induced by the composition
+$$ \HE[n]{R} \xhookrightarrow{\res} \HE[n]{S} \xrightarrow{\bigoplus \res_C} \bigoplus_{C \le S \ \text{cyclic}} \HE[n]{C} \xhookrightarrow{\subseteq} \bigoplus_{C \le R \ \text{cyclic}} \HE[n]{C}, $$
+and then applying Lemma \ref{lem:cyclicimage}.
+\end{proof}
+
+The non-degenerate case of $ p > 2 $ is easy to deal with, by virtue of the subgroup $ \cbr{\pm 1} \le \SL_2\br{\ZZ / p^e} $.
+
+\begin{proposition}
+\label{prop:vanishinggeneral}
+Let $ p > 2 $. Assume that $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $. Then
+$$ \Sha[K, E\sbr{p^e}] = 0. $$
+\end{proposition}
+
+\begin{proof}
+For this proof, write $ S \coloneqq \SL_2\br{\ZZ / p^e} $. By Lemma \ref{lem:cyclicspecial}, it suffices to show a stronger condition that $ \HE[p^e]{S} $ is trivial. The inflation-restriction exact sequence applied to $ S / \cbr{\pm 1} $ yields
+$$ 0 \to \H^1\br{S / \cbr{\pm 1}, E\sbr{p^e}^{\cbr{\pm 1}}} \xrightarrow{\inf} \HE[p^e]{S} \xrightarrow{\res} \HE[p^e]{\cbr{\pm 1}}. $$
+The natural $ \cbr{\pm 1} $-action on $ E\sbr{p^e} \cong \br{\ZZ / p^e}^2 $ is either the identity map or the inversion map, so the invariant subgroup $ E\sbr{p^e}^{\cbr{\pm 1}} $ is simply $ E\sbr{p^e}\sbr{2} $, which is simultaneously $ p $-torsion and $ 2 $-torsion, and hence trivial. The same torsion argument applies for the triviality of $ \HE[p^e]{\cbr{\pm 1}} $, so the result follows.
+\end{proof}
+
+The remainder of this subsection deals with the degenerate case of $ p = 2 $, which is significantly more cumbersome in both proof and notation. It suffices to consider $ e > 1 $, since the trivial scenario when $ e = 1 $ is already dealt with. First observe that reducing integers modulo $ 2^d $ induces natural quotient maps $ \sigma_d^e : \SL_2\br{\ZZ / 2^e} \twoheadrightarrow \SL_2\br{\ZZ / 2^d} $, so for the remainder of this subsection, denote
+$$ \S_d \coloneqq \SL_2\br{\ZZ / 2^d}, \qquad \sigma_d^e : \S_e \twoheadrightarrow \S_d. $$
+With this notation, the kernels of these reduction maps induce a descending filtration of groups
+$$ 0 = \ker \sigma_e^e \le \ker \sigma_{e - 1}^e \le \dots \le \ker \sigma_1^e \le \ker \sigma_0^e = \S_e, $$
+and a canonical isomorphism of groups $ \S_e / \ker \sigma_d^e \cong \S_d $ by the first isomorphism theorem.
+
+\pagebreak
+
+\begin{lemma}
+\label{lem:twotorsion}
+Assume that $ \S_e \le \im \rho_{E\sbr{2^e}} $. Then there is an isomorphism of abelian groups
+$$ \HE[2]{\S_e} \xrightarrow{\sim} \HE[2^e]{\S_e}. $$
+\end{lemma}
+
+\begin{proof}
+As per Proposition \ref{prop:vanishinggeneral}, the inflation-restriction exact sequence applied to $ \S_e / \cbr{\pm 1} $ yields
+$$ 0 \to \H^1\br{\S_e / \cbr{\pm 1}, E\sbr{2^e}^{\cbr{\pm 1}}} \xrightarrow{\inf} \HE[2^e]{\S_e} \xrightarrow{\res} \HE[2^e]{\cbr{\pm 1}}, $$
+but the invariant subgroup $ E\sbr{2^e}^{\cbr{\pm 1}} $ is now $ E\sbr{2} $, while an explicit cohomological computation yields
+$$ \HE[2^e]{\cbr{\pm 1}} = E\sbr{2^e} / 2E\sbr{2^e} \cong \br{\ZZ / 2^e}^2 / \br{2\ZZ / 2^e}^2 \cong \br{\ZZ / 2}^2, $$
+by the third isomorphism theorem. Recall that the restriction map factors as a composition $ \HE[2^e]{\S_e} \to \HE[2^e]{\cbr{\pm 1}}^{\S_e / \cbr{\pm 1}} \to \HE[2^e]{\cbr{\pm 1}} $. As per Proposition \ref{prop:vanishingbase}, any $ \S_e / \cbr{\pm 1} $-invariant element of $ \br{\ZZ / 2}^2 $ is fixed by $ \twobytwosmall{1}{1}{0}{1}, \twobytwosmall{1}{0}{1}{1} \in \S_e / \cbr{\pm 1} $, so the invariant subgroup $ \HE[2^e]{\cbr{\pm 1}}^{\S_e / \cbr{\pm 1}} $ must be trivial and the inflation map is an isomorphism. Recalling again that the inflation map factors as a composition $ \HE[2]{\S_e / \cbr{\pm 1}} \to \HE[2]{\S_e} \to \HE[2^e]{\S_e} $ gives a commutative diagram of abelian groups
+$$
+\begin{tikzcd}[column sep=small]
+& & \HE[2]{\S_e / \cbr{\pm 1}} \arrow[hookrightarrow]{d} \arrow{dr}{\inf}[swap]{\sim} & & & \\
+\dots \arrow{r} & \H^0\br{\S_e, 2E\sbr{2^e}} \arrow{r}{\delta_0} & \HE[2]{\S_e} \arrow[twoheadrightarrow]{r} & \HE[2^e]{\S_e} \arrow{r} & \H^1\br{\S_e, 2E\sbr{2^e}} \arrow{r} & \dots
+\end{tikzcd},
+$$
+where the exact bottom row arises from applying group cohomology to the short exact sequence of abelian groups induced by multiplication by two
+$$ 0 \to E\sbr{2} \xrightarrow{\hookrightarrow} E\sbr{2^e} \xrightarrow{\sbr{2}} 2E\sbr{2^e} \to 0. $$
+Thus the required isomorphism follows from the triviality of $ \H^0\br{\S_e, E\sbr{2^e}} = \br{2E\sbr{2^e}}^{\S_e} \cong \br{\br{2\ZZ / 2^e}^2}^{\S_e} $, which holds by a similar invariance argument with $ \twobytwosmall{1}{1}{0}{1}, \twobytwosmall{1}{0}{1}{1} \in \S_e $ as above.
+\end{proof}
+
+Next is a short analysis of the filtration of the kernels of the reduction maps $ \sigma_d^e : \S_e \twoheadrightarrow \S_d $ for $ e > 1 $.
+
+\begin{lemma}
+\label{lem:reductionkernel}
+Let $ e > 1 $. Then
+$$ \br{\ker \sigma_1^e}^2 = \ker \sigma_2^e, $$
+where $ \br{-}^2 $ is the subgroup generated by the squares of all elements.
+\end{lemma}
+
+\begin{proof}
+This is an induction with two straightforward but tedious base cases $ e = 2 $ and $ e = 3 $ checked explicitly. If $ e = 2 $, an easy manipulation of congruence equations yields
+$$ \ker \sigma_1^2 = \cbr{\twobytwo{a}{b}{c}{d} \st \begin{array}{l} a, d \in \cbr{1, 3}, \\ b, c \in \cbr{0, 2}, \\ ad - bc \equiv 1 \mod 4 \end{array}} = \twobytwo{1}{0}{0}{1} + 2\cbr{\twobytwo{a}{b}{c}{a} \st a, b, c \in \cbr{0, 1}}, $$
+so $ \br{\ker \sigma_1^2}^2 = 0 = \ker \sigma_2^2 $ by definition. If $ e = 3 $, a further manipulation of congruence equations yields
+\begin{align*}
+\ker \sigma_1^3
+= \cbr{\twobytwo{a}{b}{c}{d} \st \begin{array}{l} a, d \in \cbr{1, 3, 5, 7}, \\ b, c \in \cbr{0, 2, 4, 6}, \\ ad - bc \equiv 1 \mod 8 \end{array}}
+= & \cbr{\twobytwo{a}{b}{c}{a} \st \begin{array}{l} a \in \cbr{1, 3, 5, 7}, \\ \begin{cases} b \in \cbr{0, 2, 4, 6}, \ c \in \cbr{0, 4} \\ b \in \cbr{0, 4}, \ c \in \cbr{2, 6} \end{cases} \end{array}} \\
+& \cup \cbr{\twobytwo{a}{b}{c}{a + 4} \st \begin{array}{l} a \in \cbr{1, 3, 5, 7}, \\ b, c \in \cbr{2, 6} \end{array}},
+\end{align*}
+$$ \ker \sigma_2^3 = \cbr{\twobytwo{a}{b}{c}{d} \st \begin{array}{l} a, d \in \cbr{1, 5}, \\ b, c \in \cbr{0, 4}, \\ ad - bc \equiv 1 \mod 8 \end{array}} = \twobytwo{1}{0}{0}{1} + 4\cbr{\twobytwo{a}{b}{c}{a} \st a, b, c \in \cbr{0, 1}}, $$
+and it can also be verified that
+$$ \br{\ker \sigma_1^3}^2 = \cbr{\twobytwo{1}{0}{0}{1}, \twobytwo{1}{0}{4}{1}, \twobytwo{1}{4}{0}{1}, \twobytwo{1}{4}{4}{1}, \twobytwo{5}{0}{0}{5}, \twobytwo{5}{0}{4}{5}, \twobytwo{5}{4}{0}{5} \twobytwo{5}{4}{4}{5}} = \ker \sigma_2^3. $$
+
+\pagebreak
+
+\noindent
+Now assume the result for $ e - 1 \ge 3 $. By the same manipulation as above,
+$$ \ker \sigma_{e - 1}^e = \cbr{\twobytwo{a}{b}{c}{d} \st \begin{array}{l} a, d \in \cbr{1, 2^{e - 1} + 1}, \\ b, c \in \cbr{0, 2^{e - 1}}, \\ ad - bc \equiv 1 \mod 2^e \end{array}} = \twobytwo{1}{0}{0}{1} + 2^{e - 1}\cbr{\twobytwo{a}{b}{c}{a} \st a, b, c \in \cbr{0, 1}}, $$
+but $ \br{2^{e - 2}}^2 $ becomes trivial in $ \S_e $ since $ e \ge 4 $, so any matrix in $ \ker \sigma_{e - 1}^e $ can be written as
+$$ \twobytwo{1}{0}{0}{1} + 2^{e - 1}\twobytwo{a}{b}{c}{a} = \br{\twobytwo{1}{0}{0}{1} + 2^{e - 2}\twobytwo{a}{b}{c}{a}}^2 \in \br{\ker \sigma_1^e}^2, $$
+giving the inclusion $ \ker \sigma_{e - 1}^e \le \br{\ker \sigma_1^e}^2 $. On the other hand, any matrix in $ \S_e $ that becomes trivial in $ \S_1 $ squares to also become trivial in $ \S_2 $, so there is also an inclusion $ \br{\ker \sigma_1^e}^2 \le \ker \sigma_2^e $. Thus
+$$ \br{\ker \sigma_1^e}^2 / \ker \sigma_{e - 1}^e = \br{\ker \sigma_1^e / \ker \sigma_{e - 1}^e}^2 = \ker \sigma_2^e / \ker \sigma_{e - 1}^e, $$
+by the inductive hypothesis and the canonical isomorphism $ \ker \sigma_d^{e - 1} \cong \ker \sigma_d^e / \ker \sigma_{e - 1}^e $, so a simple counting argument of cosets gives an equality $ \br{\ker \sigma_1^e}^2 = \ker \sigma_2^e $.
+\end{proof}
+
+In particular, this says that any homomorphism from $ \ker \sigma_1^e $ to a $ 2 $-torsion group contains $ \ker \sigma_2^e $, so the restriction map $ \res : \HE[2]{\ker \sigma_1^e} \to \HE[2]{\ker \sigma_2^e} $ is really the trivial map.
+
+\begin{lemma}
+\label{lem:twospecial}
+Let $ e > 1 $. Then there is an isomorphism of abelian groups
+$$ \HE[2]{\S_2} \xrightarrow{\sim} \HE[2]{\S_e}. $$
+\end{lemma}
+
+\begin{proof}
+The inflation-restriction exact sequence applied to $ \S_e / \ker \sigma_2^e \cong \S_2 $ yields
+$$ 0 \to \H^1\br{\S_2, E\sbr{2}^{\ker \sigma_2^e}} \xrightarrow{\inf} \HE[2]{\S_e} \xrightarrow{\res} \HE[2]{\ker \sigma_2^e}, $$
+but $ \ker \sigma_2^e $ clearly fixes $ E\sbr{2} \cong \br{\ZZ / 2}^2 $, so the invariant subgroup $ E\sbr{2}^{\ker \sigma_2^e} $ is $ E\sbr{2} $. On the other hand, taking into account the filtration, this restriction map factors into a composition of two restriction maps
+$$ \res : \HE[2]{\S_e} = \HE[2]{\ker \sigma_0^e} \xrightarrow{\res_1} \HE[2]{\ker \sigma_1^e} \xrightarrow{\res_2} \HE[2]{\ker \sigma_2^e}, $$
+the second of which is trivial by Lemma \ref{lem:reductionkernel}. Thus the inflation map is the required isomorphism.
+\end{proof}
+
+It helps to reduce an arbitrary group $ \HE[2^e]{\S_e} $ down to $ \HE[2]{\S_2} $, since the latter can be reasonably computed by hand, which is achieved by considering the generators of $ \S_2 $.
+
+\begin{lemma}
+\label{lem:trivialgenerators}
+Let $ \xi \in \HE[2]{\S_2} $ be a $ 1 $-cocycle such that $ \xi\br{\twobytwosmall{1}{1}{0}{1}} $ and $ \xi\br{\twobytwosmall{1}{0}{1}{1}} $ are both trivial. Then $ \xi $ is also trivial.
+\end{lemma}
+
+\begin{proof}
+It can be verified with an explicit computation that any matrix $ M \in \S_2 $ can be generated by products of powers of $ \twobytwosmall{1}{1}{0}{1} $ and $ \twobytwosmall{1}{0}{1}{1} $, so the result can be acquired by induction. In particular, let $ M = M_1M_2 $ be a decomposition into a product of two matrices $ M_1, M_2 \in \S_2 $ that are generated by strictly fewer total powers of $ \twobytwosmall{1}{1}{0}{1} $ and $ \twobytwosmall{1}{0}{1}{1} $, and assume that $ \xi\br{M_1} $ and $ \xi\br{M_2} $ are both trivial. Then the crossed condition dictates that $ \xi\br{M} = \xi\br{M_1} + M_1\xi\br{M_2} $, so the result follows by the inductive hypothesis.
+\end{proof}
+
+While the elements $ \twobytwosmall{1}{1}{0}{1}, \twobytwosmall{1}{0}{1}{1} \in \S_2 $ multiply to generate the whole group, they individually generate two cyclic subgroups within $ \S_2 $, namely the upper and lower unitriangular matrix groups
+$$ \U_e \coloneqq \cbr{\twobytwo{1}{a}{0}{1} \st a \in \ZZ / 2^e}, \qquad \L_e \coloneqq \cbr{\twobytwo{1}{0}{a}{1} \st a \in \ZZ / 2^e}, $$
+equipped with the natural reduction modulo four maps $ \upsilon_2^e : \U_e \twoheadrightarrow \U_2 $ and $ \tau_2^e : \L_e \twoheadrightarrow \L_2 $, whose cohomology groups will serve as the final reduction. Note that the previous three results do not use the prevailing assumption that $ \S_e \le \im \rho_{E\sbr{2^e}} $, but the final result combines all of the previous results nonetheless.
+
+\pagebreak
+
+\begin{proposition}
+\label{prop:vanishingspecial}
+Let $ e > 1 $. Assume that $ \S_e \le \im \rho_{E\sbr{2^e}} $. Then
+$$ \Sha[K, E\sbr{2^e}] = 0. $$
+\end{proposition}
+
+\begin{proof}
+By Lemma \ref{lem:cyclicspecial}, it suffices to show that the induced restriction map
+$$ \res_{\U_e} \oplus \res_{\L_e} : \HE[2^e]{\S_e} \to \HE[2^e]{\U_e} \oplus \HE[2^e]{\L_e} $$
+is injective. Combining Lemma \ref{lem:twotorsion} and Lemma \ref{lem:twospecial} establishes isomorphisms of abelian groups
+$$ \HE[2]{\S_2} \xrightarrow{\sim} \HE[2]{\S_e} \xrightarrow{\sim} \HE[2^e]{\S_e}, $$
+and analogous maps will now be constructed for the unitriangular matrix groups $ \U_e $ and $ \L_e $ as follows. As for the special linear group $ \S_e $, there is a canonical isomorphism of groups $ \U_e / \ker \upsilon_2^e \cong \U_2 $ by the first isomorphism theorem, and applying the inflation-restriction exact sequence to this yields
+$$ 0 \to \H^1\br{\U_2, E\sbr{2}^{\ker \upsilon_2^e}} \xrightarrow{\inf} \HE[2]{\U_e} \xrightarrow{\res} \HE[2]{\ker \upsilon_2^e}, $$
+but $ \ker \upsilon_2^e $, analogous to $ \ker \sigma_2^e $, fixes $ E\sbr{2} \cong \br{\ZZ / 2}^2 $, so the invariant subgroup $ E\sbr{2}^{\ker \upsilon_2^e} $ is again $ E\sbr{2} $. On the other hand, applying group cohomology to the short exact sequence of abelian groups
+$$ 0 \to E\sbr{2} \xrightarrow{\hookrightarrow} E\sbr{2^e} \xrightarrow{\sbr{2}} 2E\sbr{2^e} \to 0, $$
+yields a long exact sequence
+$$ \dots \to \H^0\br{\U_e, E\sbr{2^e}} \xrightarrow{\sbr{2}} \H^0\br{\U_e, 2E\sbr{2^e}} \xrightarrow{\delta_0} \HE[2]{\U_e} \xrightarrow{\phi} \HE[2^e]{\U_e} \to \dots. $$
+However in this case, since $ \twobytwosmall{1}{0}{1}{1} \notin \U_e $, the same invariance argument fails, but it is still easy to see that
+$$ \H^0\br{\U_e, E\sbr{2^e}} = E\sbr{2^e}^{\U_e} \cong \br{\br{\ZZ / 2^e}^2}^{\U_e} \cong \ZZ / 2^e \oplus 0, $$
+$$ \H^0\br{\U_e, 2E\sbr{2^e}} = \br{2E\sbr{2^e}}^{\U_e} \cong \br{\br{2\ZZ / 2^e}^2}^{\U_e} \cong 2\ZZ / 2^e \oplus 0, $$
+so the first multiplication by two map is surjective, and it follows that the connecting homomorphism is the trivial map and the last map is injective. Completely analogously, there are similar constructions of this last monomorphism $ \phi : \HE[2]{\L_e} \hookrightarrow \HE[2^e]{\L_e} $ and the previous inflation map $ \inf : \HE[2]{\L_2} \hookrightarrow \HE[2]{\L_e} $ for $ \L_e $, which are again both injective. Combining all four of these monomorphisms with the isomorphisms for $ \S_e $ establishes, by construction, a commutative diagram of abelian groups
+$$
+\begin{tikzcd}
+\HE[2]{\S_2} \arrow{r}{\sim} \arrow{d}{\res_2} & \HE[2]{\S_e} \arrow{r}{\sim} \arrow{d}{\res_e} & \HE[2^e]{\S_e} \arrow{d}{\res_{\U_e} \oplus \res_{\L_e}} \\
+\HE[2]{\U_2} \oplus \HE[2]{\L_2} \arrow[hookrightarrow]{r}[swap]{\inf} & \HE[2]{\U_e} \oplus \HE[2]{\L_e} \arrow[hookrightarrow]{r}[swap]{\phi} & \HE[2^e]{\U_e} \oplus \HE[2^e]{\L_e}
+\end{tikzcd},
+$$
+where the vertical restriction maps are induced by the obvious inclusion maps $ \U_e \hookrightarrow \S_e $ and $ \L_e \hookrightarrow \S_e $. Thus it suffices to show the injectivity of the left restriction map, after which the desired injection follows by the composition of all of these maps, but this is exactly the content of Lemma \ref{lem:trivialgenerators}.
+\end{proof}
+
+The results of this subsection can now be summarised as follows.
+
+\begin{corollary}
+\label{cor:vanishingsummary}
+Assume that $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $. Then
+$$ \Sha[K, E\sbr{p^e}] = 0. $$
+\end{corollary}
+
+\begin{proof}
+This follows immediately from Proposition \ref{prop:vanishingbase}, Proposition \ref{prop:vanishinggeneral}, and Proposition \ref{prop:vanishingspecial}.
+\end{proof}
+
+\begin{remark}
+Using similar cohomological methods, one can obtain various frequently applicable criteria for the vanishing of $ \Sha[K, M] $ for other finite $ \AG{K} $-modules $ M $ \cite[Proposition 3.3]{PR12}, so this result is itself unsurprising. There is also an analogue proven for elliptic curves defined over function fields under a slightly different hypothesis, namely that $ \im \rho_{E\sbr{p^e}} $ needs to be cyclic, but this assumption, as with the above assumption, remains applicable to almost all elliptic curves \cite[Proposition 6.1]{BKLPR15}.
+\end{remark}
+
+\pagebreak
+
+\subsection{Direct summands and strong metabolicity}
+
+This subsection finishes the proof that the two Lagrangian submodules $ \im \kappa $ and $ \im \lambda $ are often direct summands of $ \HE[n]{\AA_K} $, using purely group theoretic techniques. The proof combines the arguments in the paper on modelling distributions of elliptic curves by Bhargava, Kane, Lenstra, Poonen, and Rains \cite{BKLPR15}, and in the paper on Selmer groups and adelic cohomology by Gillibert, Gillibert, Gillibert, and Ranieri \cite{GGGR19}. Several well-known results taken from Fuchs's book on infinite abelian groups \cite{Fuc70} will be admitted without proof, as they are relatively straightforward but the technical arguments used are irrelevant for immediate elucidation. The first of these generalises the structure theorem of finite abelian groups to arbitrary torsion groups, and is often called \textbf{Pr\"ufer's first theorem} in the literature.
+
+\begin{theorem}[{\cite[Theorem III.17.2]{Fuc70}}]
+\label{thm:pruferfirst}
+An $ n $-torsion abelian group is a direct sum of cyclic groups.
+\end{theorem}
+
+Assuming this statement, $ \im \kappa $ is easily a direct summand, noting that $ \ZZ / n $-modules are synonymous with $ n $-torsion abelian groups. For each place $ v \in \VVV_K $, again write $ \kappa_v $ to denote the local injection.
+
+\begin{proposition}
+\label{prop:localsummand}
+The submodule $ \im \kappa_v $ is a direct summand.
+\end{proposition}
+
+\begin{proof}
+Theorem \ref{thm:pruferfirst}, assuming the structure theorem, establishes a decomposition of abelian groups
+$$ \HE{K_v}\sbr{n} \cong \br{\ZZ / p_1^{e_1}}^{n_1} \oplus \dots \oplus \br{\ZZ / p_k^{e_k}}^{n_k}, \qquad n_i \in \NN^+, $$
+for distinct prime powers $ p_i^{e_i} \in \NN^+ $. Then for each $ p_i^{e_i} $, there is a row-exact diagram of abelian groups
+$$
+\begin{tikzcd}
+0 \arrow{r} & \En[p_i^{e_i}]{K_v} \arrow{r}{\kappa_v'} \arrow[hookrightarrow]{d} & \HE[p_i^{e_i}]{K_v} \arrow{r}{\mu_v'} \arrow{d}{\phi} & \HE{K_v}\sbr{p_i^{e_i}} \arrow{r} \arrow[hookrightarrow]{d} & 0 \\
+0 \arrow{r} & \En{K_v} \arrow{r}[swap]{\kappa_v} & \HE[n]{K_v} \arrow{r}[swap]{\mu_v} & \HE{K_v}\sbr{n} \arrow{r} & 0
+\end{tikzcd},
+$$
+arising from including the respective local Kummer sequences. In particular, any $ 1 $-cocycle $ \xi \in \HE{K_v}\sbr{n} $ with order exactly $ p_i^{e_i} $ belongs to some $ \HE{K_v}\sbr{p_i^{e_i}} \cong \br{\ZZ / p_i^{e_i}}^{n_i} $, which by the surjectivity of $ \mu_v' $ lifts to some $ 1 $-cocycle $ \xi' \in \HE[p_i^{e_i}]{K_v} $ with order also exactly $ p_i^{e_i} $, since it is also a $ p_i^{e_i} $-torsion group. Applying the map $ \phi $ sends $ \xi' $ to a $ 1 $-cocycle $ \phi\br{\xi'} \in \HE[n]{K_v} $ with order dividing $ p_i^{e_i} $, but the commutativity of the right square ensures that $ \mu_v\br{\phi\br{\xi'}} = \xi $ and $ \phi\br{\xi'} $ has order exactly $ p_i^{e_i} $. Thus this defines a partial section $ \HE{K_v}\sbr{n} \to \HE[n]{K_v} $ that glues across all $ p_i^{e_i} $ to construct a well-defined section of $ \mu_v $, so the bottom short exact sequence splits as a direct sum decomposition $ \HE[n]{K_v} \cong \im \kappa_v \oplus \HE{K_v}\sbr{n} $.
+\end{proof}
+
+\begin{remark}
+The proof of Proposition \ref{prop:localsummand} is irrespective of locality, so it generalises to arbitrary Kummer sequences, and indeed to a very general family of Kummer-like exact sequences \cite[Theorem 1.1]{GG18}.
+\end{remark}
+
+The fact that $ \im \kappa $ is a direct summand follows immediately.
+
+\begin{corollary}
+\label{cor:localsummand}
+The submodule $ \im \kappa $ is a direct summand.
+\end{corollary}
+
+\begin{proof}
+This follows by repeatedly applying Proposition \ref{prop:localsummand} to the adelic Kummer sequence.
+\end{proof}
+
+Proving that $ \im \lambda $ is also a direct summand is slightly more involved, starting with the notion of a \textbf{pure subgroup} $ A \subseteq B $ of abelian group, which says that $ mA = A \cap mB $ for any $ m \in \NN^+ $. This will be relevant only to quote two useful results abstractly characterising images of monomorphisms.
+
+\begin{lemma}[{\cite[Theorems V.28.2 and V.29.1(c)]{Fuc70}}]
+\label{lem:imagepure}
+Let $ \phi : A \hookrightarrow B $ be a monomorphism of abelian groups.
+\begin{enumerate}
+\item $ \im \phi \subseteq B $ is a direct summand if $ \im \phi \subseteq B $ is pure and $ B / \im \phi $ is a direct sum of cyclic groups.
+\item $ \im \phi \subseteq B $ is pure if and only if the induced maps $ \phi_m : A / m \to B / m $ are injective for all $ m \in \NN^+ $.
+\end{enumerate}
+\end{lemma}
+
+The latter injectivity condition is equivalent to preserving divisibility of elements by any $ m \in \NN^+ $ upon retracting from $ B $ to $ A $, a step that will be utilised in the upcoming abstract diagram chasing arguments. Considering these two statements in the case of $ n $-torsion abelian groups instead, this divisibility-preserving condition turns out to be necessary and sufficient for images of monomorphisms to be direct summands.
+
+\pagebreak
+
+\begin{lemma}
+\label{lem:summandinjective}
+Let $ \phi : A \hookrightarrow B $ be a monomorphism of $ n $-torsion abelian groups. Then $ \im \phi \subseteq B $ is a direct summand if and only if the induced maps $ \phi_m : A / m \to B / m $ are injective for all $ m \mid n $.
+\end{lemma}
+
+\begin{proof}
+Assume that $ \im \phi \subseteq B $ is a direct summand, so there is an internal direct sum decomposition $ B = \im \phi \oplus C $ for some subgroup $ C \subseteq B $. Let $ m \mid n $, and let $ a \in A $ be an element such that $ \phi_m\br{a} = 0 $ in $ B / m $, so $ \phi\br{a} = mb $ for some element $ b \in B $. By assumption, there are elements $ a' \in A $ and $ c \in C $ such that $ b = \phi\br{a'} + c $, so $ \phi\br{a} = mb = m\phi\br{a'} + mc $. Then $ \phi\br{a - ma'} = \phi\br{a} - m\phi\br{a'} = mc \in \im \phi \cap C = 0 $, so $ a = ma' \in mA $ by injectivity of $ \phi $. Hence $ a = 0 $ in $ A / m $, so $ \phi_m $ is injective. Conversely, assume that $ \phi_m $ is injective for all $ m \mid n $, which is equivalent to all $ m \in \NN^+ $ by virtue of $ n $-torsion. Then $ \im \phi \subseteq B $ is pure by Lemma \ref{lem:imagepure}.$ 2 $, and since $ B / \im \phi $ is clearly $ n $-torsion, it is also direct sum of cyclic groups by Theorem \ref{thm:pruferfirst}. Thus $ \im \phi \subseteq B $ is a direct summand by Lemma \ref{lem:imagepure}.$ 1 $.
+\end{proof}
+
+\begin{lemma}
+\label{lem:diagraminjective}
+Let
+$$
+\begin{tikzcd}
+A \arrow{r}{\alpha} \arrow{d}{\phi} & B \arrow{r}{\beta} \arrow[hookrightarrow]{d}{\chi} & C \arrow{d}{\psi} \\
+A' \arrow{r}[swap]{\alpha'} & B' \arrow{r}[swap]{\beta'} & C'
+\end{tikzcd}
+$$
+be a row-exact diagram of abelian groups, such that $ B' $ is $ n $-torsion, $ \im \beta = C\sbr{n} $, and the induced maps
+$$ \phi_m : A / m \to A' / m, \qquad \alpha_m' : A' / m \to B' / m, \qquad \psi_m : C / m \to C' / m $$
+are injective for all $ m \mid n $. Then the induced maps $ \chi_m : B / m \to B' / m $ are injective for all $ m \mid n $.
+\end{lemma}
+
+\begin{proof}
+Let $ m \mid n $, and let $ b \in B $ be an element such that $ \chi_m\br{b} = 0 $ in $ B' / m $, so $ \chi\br{b} = mb' $ for some element $ b' \in B' $. Commutativity of the right square yields $ \psi\br{\beta\br{b}} = \beta'\br{\chi\br{b}} = \beta'\br{mb'} = m\beta'\br{b'} $, so $ \beta\br{b} = mc $ for some element $ c \in C $ by injectivity of $ \psi_m $. Since $ B' $ is $ n $-torsion, $ \chi\br{nb / m} = n\chi\br{b} / m = nb' = 0 $, so $ nb / m = 0 $ by injectivity of $ \chi $. Then $ nc = n\beta\br{b} / m = \beta\br{nb / m} = 0 $, so $ c \in C\sbr{n} = \im \beta $, and hence $ c = \beta\br{e} $ for some element $ e \in B $. Now $ \beta\br{b - me} = \beta\br{b} - m\beta\br{e} = 0 $, so $ b - me \in \ker \beta = \im \alpha $, and hence $ b - me = \alpha\br{a} $ for some element $ a \in A $. Commutativity of the left square yields $ \alpha'\br{\phi\br{a}} = \chi\br{\alpha\br{a}} = \chi\br{b - me} = \chi\br{b} - m\chi\br{e} = m\br{b' - \chi\br{e}} $, so $ a = md $ for some element $ d \in A $ by injectivity of $ \phi_m $ and $ \alpha_m' $. Thus $ b = \alpha\br{a} + me = m\br{\alpha\br{d} + e} = 0 $ in $ B / m $, so $ \chi_m $ is injective.
+\end{proof}
+
+Returning to the discussion of $ \im \lambda $, the various conditions in Lemma \ref{lem:diagraminjective} can be verified for the Kummer diagram, but doing so will require an assumption on $ \Sha[K, E\sbr{m}] $ for each $ m \mid n $.
+
+\begin{proposition}
+\label{prop:globalsummand}
+Let $ \Sha[K, E\sbr{m}] $ be trivial for all $ m \mid n $. Then the submodule $ \im \lambda $ is a direct summand.
+\end{proposition}
+
+\begin{proof}
+For each $ m \mid n $, consider the long row-exact diagram of cohomology groups
+$$
+\begin{tikzcd}
+\dots \arrow{r} & E\br{K} \arrow{r}{\alpha} \arrow[hookrightarrow]{d}{\phi} & \HE[m]{K} \arrow{r}{\beta} \arrow{d}{\chi} & \HE{K} \arrow{r} \arrow{d}{\psi} & \dots \\
+\dots \arrow{r} & \displaystyle\PV E\br{K_v} \arrow{r}[swap]{\alpha'} & \displaystyle\PV\HE[m]{K_v} \arrow{r}[swap]{\beta'} & \displaystyle\PV\HE{K_v} \arrow{r} & \dots
+\end{tikzcd},
+$$
+which induces the Kummer diagram if $ m = n $, where each $ \HE[n]{K_v} $ is $ n $-torsion and $ \im \beta = \HE{K}\sbr{n} $. Zooming in at the first two connecting homomorphisms furnishes commutative squares of abelian groups
+$$
+\begin{tikzcd}
+E\br{K} / m \arrow[hookrightarrow]{r}{\alpha} \arrow{d}[swap]{\phi_m} & \HE[m]{K} \arrow{d}{\chi} \\
+\displaystyle\PV E\br{K_v} / m \arrow[hookrightarrow]{r}[swap]{\alpha'} & \displaystyle\PV\HE[m]{K_v}
+\end{tikzcd},
+\qquad
+\begin{tikzcd}
+\HE{K} / m \arrow[hookrightarrow]{r}{\delta_1} \arrow{d}[swap]{\psi_m} & \H^2\br{K, E\sbr{m}} \arrow{d}{\chi'} \\
+\displaystyle\PV\HE{K_v} / m \arrow[hookrightarrow]{r}[swap]{\delta_1'} & \displaystyle\PV\H^2\br{K_v, E\sbr{m}}
+\end{tikzcd}.
+$$
+By Tate's global duality for $ E\sbr{m} $, the assumption establishes the triviality of both $ \Sha[K, E\sbr{m}] = \ker \chi $ and $ \SHA^2\br{K, E\sbr{m}} = \ker \chi' $, so the induced maps $ \phi_m $ and $ \psi_m $ are injective. Corollary \ref{cor:localsummand} says that $ \im \alpha' $ is a direct summand, which by Lemma \ref{lem:summandinjective} also gives the injectivity of $ \alpha_m' $. Thus the conditions of Lemma \ref{lem:diagraminjective} are satisfied, and the result follows by the converse of Lemma \ref{lem:summandinjective}.
+\end{proof}
+
+\pagebreak
+
+\begin{remark}
+The result that $ \im \lambda $ is a direct summand was originally a conjecture, and was thought to have no counterexamples \cite[Conjecture 6.9]{BKLPR15}. This is false \cite[Theorem 1.4]{GGGR19}, but it is also possible to construct an explicit family of elliptic curves that always satisfies this \cite[Corollary 1.3]{GGGR19}.
+\end{remark}
+
+Fortunately, the assumption in Proposition \ref{prop:globalsummand} is satisfiable, at least for the purposes of proving the main result, since $ \Sha[K, E\sbr{p^e}] $ is trivial for a prime power $ p^e \in \NN^+ $ whenever $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $, by Corollary \ref{cor:vanishingsummary}. It remains to justify that the latter assumption is a mild one.
+
+\subsection{Ubiquity of surjective Galois representations}
+
+This final short subsection elucidates why the assumption $ \SL_2\br{\ZZ / n} \le \im \rho_{E\sbr{n}} $ holds for almost all elliptic curves in $ \EEE\br{K} $, for a fixed $ n \in \NN^+ $. In fact, the stronger statement that $ \rho_{E\sbr{n}} $ is usually surjective is also true, given a generic elliptic curve in $ \EEE\br{K} $, which trivialises the assumption. This is really a consequence of \textbf{Hilbert's irreducibility theorem} and the theory of \textbf{modular curves}, but to avoid a potentially huge detour to both areas, the relevant results will be stated without proof. In its simplest form, Hilbert's irreducibility theorem says that an irreducible polynomial $ f \in \QQ\sbr{X, Y} $ remains irreducible after specialising $ X $ to some $ x \in \QQ $ and obtaining a polynomial $ f\br{x, -} \in \QQ\sbr{Y} $. This has since been extensively reformulated in the language of algebraic geometry, and a relevant consequence can be stated in terms of Galois groups.
+
+\begin{theorem}[{\cite[Theorem 1.1]{Zyw10}}]
+\label{thm:hilbertirreducibility}
+Let $ f \in F\br{X}\sbr{Y_1, \dots, Y_n} $ be an irreducible polynomial, and let $ F_f $ be the splitting field of $ f $ over $ F\br{X} $. Then for almost all $ x \in F $ such that $ f\br{x, -} \in F\sbr{Y_1, \dots, Y_n} $ is separable, specialisation of $ X $ to $ x $ induces an isomorphism of Galois groups
+$$ \Gal\br{F_f / F\br{X}} \cong \Gal\br{F_{f\br{x, -}} / F}, $$
+where $ F_{f\br{x, -}} $ is the splitting field of $ f\br{x, -} $ over $ F $.
+\end{theorem}
+
+\begin{remark}
+Hilbert's irreducibility theorem admits many applications in number theory, such as the partial resolution of the inverse Galois problem via polynomials in $ \QQ\br{t} $ under the above formulation \cite[Section 9.3]{Ser89}. Other applications within elliptic curves include the construction of elliptic curves with large rank, and showing that almost all elliptic curves have trivial torsion subgroups, the latter of which also involves the theory of modular curves \cite[Lemma 5.7]{BKLPR15}. Note that the infinitude and density of the specialisations can also be formulated in terms of Hilbert sets or thin sets \cite[Proposition 9.2.2]{Ser89}.
+\end{remark}
+
+The remaining ingredient arises as a result on elliptic curves defined over a transcendental extension of $ K $, which is a corollary of showing that $ \Gal\br{\CC\br{T}\br{E\sbr{n}} / \CC\br{T}} \cong \SL_2\br{\ZZ / n} $. The proof itself builds the theory of modular curves and elliptic functions, and will bring the discussion too far afield.
+
+\begin{lemma}[{\cite[Section III.1.1]{CSS97}}]
+\label{lem:jinvariant}
+Let $ E $ be an elliptic curve defined over the field of rational functions $ \QQ\br{T} $ with $ \j $-invariant $ T $. Then the modulo $ n $ Galois representation induces an isomorphism of groups
+$$ \Gal\br{\QQ\br{T}\br{E\sbr{n}} / \QQ\br{T}} \xrightarrow{\sim} \GL_2\br{\ZZ / n}. $$
+\end{lemma}
+
+Assuming these two results, a brief sketch of the proof goes as follows.
+
+\begin{proposition}
+\label{prop:galoisrepresentation}
+The modulo $ n $ Galois representation is surjective for almost all elliptic curves $ E \in \EEE\br{K} $.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Pick a generic elliptic curve defined over $ K\br{T} $, and apply the number field analogue of Lemma \ref{lem:jinvariant} to relate the Galois group of $ K\br{T}\br{E\sbr{n}} $ with $ \GL_2\br{\ZZ / n} $. Then use its $ n $-division polynomial characterisation to construct irreducible polynomials in $ K\br{T}\sbr{X, Y} $, and obtain the required isomorphism with the Galois group of $ K\br{E\sbr{n}} $ to almost all specialisations of $ T $ by Theorem \ref{thm:hilbertirreducibility}.
+\end{proof}
+
+\begin{remark}
+This result is heuristically expected, since by \textbf{Serre's open image theorem}, the modulo $ p $ Galois representations of elliptic curves without complex multiplication are surjective for all but finitely many primes $ p \in \NN^+ $ \cite[Theorem III.7.9]{Sil09}. An explicit elliptic curve can also be constructed with surjective modulo $ n $ Galois representations for all odd $ n \in \NN^+ $ not divisible by its conductor \cite[Section 10.4]{Ser89}. Furthermore, using sieve-theoretic techniques, one can obtain an asymptotic upper bound on the decreasing proportion of elliptic curves where the criterion $ \SL_2\br{\ZZ / p^e} \le \im \rho_{E\sbr{p^e}} $ fails \cite[Proposition 5.6]{Zyw18}. In general, images of modulo $ n $ Galois representations are usually quite large, and any further discussion on this well-studied subject would be too much to fit in this remark.
+\end{remark}
+
+Thus the initial assumption is justified by Proposition \ref{prop:galoisrepresentation}, and the proof of Theorem \ref{thm:main1} is complete.
+
+\pagebreak
+
+\section{Model for Selmer groups}
+
+Instead of tackling Conjecture \ref{con:main} directly, Theorem \ref{thm:main1} suggests a probabilistic model based on the idea that a $ p^e $-Selmer group, for some prime power $ p^e \in \NN^+ $, is almost always a natural intersection of two Lagrangian direct summands in an ambient metabolic quadratic $ \ZZ / p^e $-module of infinite rank. On the other hand, the resulting distribution of such a pseudo $ p^e $-Selmer group could be attained more simply by considering an ambient metabolic quadratic $ \ZZ / p^e $-module of finite rank, hence utilising counting tricks in finitary combinatorics, then taking the limiting average as the rank tends to infinity. Recall that $ \br{\ZZ / p^e}^{2n} $, for any $ n \in \NN^+ $, equipped with the standard hyperbolic quadratic form
+$$ \function[\omega_{\br{\ZZ / p^e}^{2n}}]{\br{\ZZ / p^e}^{2n}}{\ZZ / p^e}{\br{x_1, \dots, x_n, y_1, \dots, y_n}}{\displaystyle\sum_{i = 1}^n x_iy_i}, $$
+is a metabolic quadratic $ \ZZ / p^e $-module, called the standard hyperbolic $ \ZZ / p^e $-module, with a Lagrangian direct summand $ \br{\ZZ / p^e}^n \oplus 0^n $. Thus the aim of this section is to prove the following heuristic.
+
+\begin{theorem}
+\label{thm:main2}
+Let $ L_1, L_2 \in \LG\br{\ZZ / p^e}^{2n} $ be Lagrangian direct summands chosen uniformly at random. Then
+$$ \lim_{n \to \infty} \EE\sbr{\#\br{L_1 \cap L_2}} = \sigma_1\br{p^e}, $$
+where $ \sigma_1 : \NN^+ \to \NN $ is the sum of divisors function.
+\end{theorem}
+
+The only missing piece here is the mysterious set $ \LG\br{\ZZ / p^e}^{2n} $ and its associated measure, but this will be clarified in the next short subsection, and the proof itself proceeds in three steps spanning across the following three subsections. By first building up some pseudo-linear algebraic results, the size of the relevant sample space can be computed, which is then used to deduce the average size of the pseudo $ p^e $-Selmer group. Finally, a potential flaw with the model is justified in the final subsection. The overall argument is adapted from the paper on modelling distributions of elliptic curves by Bhargava, Kane, Lenstra, Poonen, and Rains \cite{BKLPR15}, with an alternative, more elementary, proof for a key result on the size of the sample space taken from the paper on MDS codes by Dougherty, Kim, and Kulosman \cite{DKK08}. Throughout this section, $ R $ will be one of the finite local rings $ \FF_p $ or $ \ZZ / p^e $ for a prime power $ p^e \in \NN^+ $, and $ M $ will be a free $ R $-module, with $ N \le M $ denoting that $ N $ is a direct summand of $ M $, while $ k, l, m, n \in \NN $ will be arbitrary.
+
+\subsection{Lagrangian Grassmannians}
+
+Consider the sample space of all Lagrangian direct summands of a metabolic quadratic $ R $-module $ M $.
+
+\begin{definition}
+The \textbf{Lagrangian Grassmannian} $ \LG\br{M} $ is the space of Lagrangian direct summands of $ M $.
+\end{definition}
+
+\begin{remark}
+In fact, the Lagrangian Grassmannian of a metabolic quadratic $ R $-module of rank $ 2n $, or sometimes referred to as the orthogonal Grassmannian, is a functor representable by a smooth projective scheme over $ \ZZ $ of relative dimension $ \tfrac{1}{2}n\br{n - 1} $ \cite[Proposition 4.4]{BKLPR15}, a fact useful in a later remark.
+\end{remark}
+
+A general Lagrangian Grassmannian can be equipped with a canonical measure, which induces a distribution to sample Lagrangian direct summands from, but, unlike the case of sampling elliptic curves, is more complicated to describe. Fortunately, in the relevant case of the finite $ \ZZ / p^e $-module $ \br{\ZZ / p^e}^{2n} $, there is an alternative construction by simply considering the discrete uniform distribution on $ \LG\br{\ZZ / p^e}^{2n} $, so relevant notions like the average size of the intersection $ L_1 \cap L_2 $ can be defined by
+$$ \EE\sbr{\#\br{L_1 \cap L_2}} \coloneqq \br{\#\LG\br{\ZZ / p^e}^{2n}}^{-2}\sum_{L_1, L_2 \in \LG\br{\ZZ / p^e}^{2n}} \#\br{L_1 \cap L_2}, $$
+which is the uniform average of all possible intersections. It now makes sense to choose elements uniformly at random from $ \LG\br{\ZZ / p^e}^{2n} $, and this will be the prevailing assumption from now on.
+
+\begin{remark}
+There is a perhaps more canonical measure to equip on the $ \ZZ_p $-scheme of finite type $ \LG\br{\ZZ_p}^{2n} $ that considers $ \LG\br{\ZZ / p^e}^{2n} $ for all $ p^e \in \NN^+ $ at once \cite[Proposition 2.1]{BKLPR15}, which is constructed as a generalisation of the normalised Haar measure on orthogonal groups in the usual Grassmannian variety.
+\end{remark}
+
+\pagebreak
+
+\subsection{Combinatorial linear algebra}
+
+This subsection details several results generalising linear algebra to free $ \ZZ / p^e $-modules, starting with the formalisation of the notion that free submodules are indeed equivalent to internal direct summands, as per the reasoning in the first section. Statements will be made as general as provably possible, so there is no assumption that $ M $ has to be $ \br{\ZZ / p^e}^{2n} $, nor that it is equipped with any quadratic form.
+
+\begin{lemma}
+\label{lem:freesummand}
+Let $ M $ be a free $ \ZZ / p^e $-module of finite rank, and let $ N \subseteq M $ be a submodule. Then $ N $ is free if and only if $ N \le M $ is a direct summand.
+\end{lemma}
+
+\begin{proof}
+If $ N $ is a free $ \ZZ / p^e $-module of finite rank, it is isomorphic to a finite direct product of the base ring $ \ZZ / p^e $, which is injective as a module over itself, so $ N $ is itself injective, and hence being a submodule of $ M $ is equivalent to being a internal direct summand of $ M $. Conversely, if $ N $ is an internal direct summand of $ M $, it is also a free $ \ZZ / p^e $-module, as a consequence of Nakayama's lemma applied to the local ring $ \ZZ / p^e $.
+\end{proof}
+
+\begin{proposition}
+\label{prop:fourthisomorphism}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $, and let $ N \le M $ be a direct summand of rank $ k $. Then there is a bijective correspondence of $ \ZZ / p^e $-modules
+$$ \bijection{\cbr{L \le M \st N \le L}}{\cbr{L / N \le M / N}}{L}{L / N}. $$
+\end{proposition}
+
+\begin{proof}
+The fourth isomorphism theorem gives a bijective correspondence of $ \ZZ / p^e $-modules
+$$ \bijection{\cbr{L \subseteq M \st N \subseteq L}}{\cbr{L / N \subseteq M / N}}{L}{L / N}, $$
+so, by Lemma \ref{lem:freesummand}, it suffices to prove that $ L $ is free precisely when $ L / N $ is free. As per the previous argument, the assumption on $ N $ makes it injective, so the short exact sequence of $ \ZZ / p^e $-modules
+$$ 0 \to N \to L \to L / N \to 0 $$
+splits as a direct sum decomposition $ L \cong N \oplus L / N $. Applying Nakayama's lemma again shows that the freeness of $ L / N $ is equivalent to its projectivity, which holds whenever $ L $ is free by this isomorphism, while the converse follows immediately by assumption, so the bijective correspondence follows.
+\end{proof}
+
+\begin{corollary}
+\label{cor:freequotient}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $, and let $ N \le M $ be a direct summand of rank $ k $. Then $ M / N $ is a free $ \ZZ / p^e $-module of rank $ m - k $.
+\end{corollary}
+
+\begin{proof}
+Setting $ L = M $ in the proof of Proposition \ref{prop:fourthisomorphism} and applying the same argument for $ M / N $ proves that it is free, while a simple finite counting argument verifies its rank to be exactly $ m - k $.
+\end{proof}
+
+\begin{remark}
+The proof really only uses the locality and self-injectivity of $ \ZZ / p^e $, so the same statement would generalise to free modules over local self-injective rings, which are admittedly rather rare.
+\end{remark}
+
+Next is a result arising as a variant of a usual combinatorial argument accounting for zero divisors.
+
+\begin{lemma}
+\label{lem:linearlyindependent}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $, and let $ x_1, \dots, x_k \in M $ be $ k $ linearly independent elements. Then
+$$ \#\abr{\mmm M, x_1, \dots, x_k} = p^{\br{e - 1}m + k}, $$
+where $ \mmm \coloneqq p\ZZ / p^e \subseteq \ZZ / p^e $ is the unique maximal ideal.
+\end{lemma}
+
+\begin{proof}
+This primarily relies on the fact that, by tensoring with $ \FF_p $ over $ \ZZ / p^e $, Nakayama's lemma naturally lifts a basis of the $ m $-dimensional $ \FF_p $-vector space $ M / \mmm M $ to a basis of $ m $ linearly independent elements of the free $ \ZZ / p^e $-module $ M $, and vice versa. Since the ideal $ \abr{x_1, \dots, x_k} $ is free, it is an internal direct summand of $ M $ by Lemma \ref{lem:freesummand}, so there is an internal direct sum decomposition $ M = \abr{x_1, \dots, x_k} \oplus \abr{x_{k + 1}, \dots, x_m} $ for some $ m - k $ linearly independent elements $ x_{k + 1}, \dots, x_m \in M $. Thus it is easy to see that
+$$ \#\abr{x_1, \dots, x_k} \oplus \#\mmm\abr{x_{k + 1}, \dots, x_m} = \br{\#\br{\ZZ / p^e}}^k\br{\#\mmm}^{m - k} = \br{p^e}^k\br{p^{e - 1}}^{m - k} = p^{\br{e - 1}m + k}, $$
+so the result follows.
+\end{proof}
+
+\pagebreak
+
+\begin{proposition}
+\label{prop:dimensionsummand}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $. Then
+$$ \#\cbr{L \le M \st \rk_{\ZZ / p^e} L = l} = \binom{m}{l}_{p^e} \coloneqq
+\begin{cases}
+p^{\br{e - 1}\br{m - l}l}\displaystyle\prod_{i = 0}^{l - 1} \dfrac{p^m - p^i}{p^l - p^i} & m \ge l \\
+0 & m < l
+\end{cases}.
+$$
+\end{proposition}
+
+\begin{proof}
+It suffices to count the number of ways to pick $ l $ linearly independent elements in $ M $ that generate a free submodule $ L $, and divide this quantity by the number of ways to generate the same free submodule, ensuring at each step that the element chosen contains at least one component outside the unique maximal ideal $ \mmm \coloneqq \abr{p} \subseteq \ZZ / p^e $ so as to generate the complete free submodule. Now there are always $ p^{em} $ elements to choose from, but $ p^{\br{e - 1}m + k} $ of these are either zero divisors in $ \mmm $ or are linearly dependent after $ k $ choices are made, by Lemma \ref{lem:linearlyindependent}. Thus the coefficients compute to be exactly
+$$ \binom{m}{l}_{p^e} = \dfrac{\prod_{i = 0}^{l - 1} \br{p^{em} - p^{\br{e - 1}m + i}}}{\prod_{i = 0}^{l - 1} \br{p^{el} - p^{\br{e - 1}l + i}}} = \dfrac{p^{\br{e - 1}ml}\prod_{i = 0}^{l - 1} \br{p^m - p^i}}{p^{\br{e - 1}l^2}\prod_{i = 0}^{l - 1} \br{p^l - p^i}} = p^{\br{e - 1}\br{m - l}l}\displaystyle\prod_{i = 0}^{l - 1} \dfrac{p^m - p^i}{p^l - p^i}, $$
+whenever $ m \ge l $, and clearly zero otherwise.
+\end{proof}
+
+\begin{remark}
+This set of coefficients is a generalisation of the usual \textbf{Gaussian $ p $-binomial coefficients} in combinatorics, which omits the left factor when $ e = 1 $, and counts the number of $ l $-dimensional subspaces of an $ m $-dimensional $ \FF_p $-vector space in the usual Grassmannian variety. This also further generalises, by simply replacing $ p $ with a prime power $ q \in \NN^+ $, to free modules over Galois rings $ \br{\ZZ / q}\sbr{X} / \abr{f\br{X}} $, for any monic irreducible polynomial $ f\br{X} \in \br{\ZZ / q}\sbr{X} $ of degree $ e $ \cite[Theorem 3.7]{DKK08}.
+\end{remark}
+
+\begin{corollary}
+\label{cor:dimensioncontainment}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $, and let $ N \le M $ be a direct summand of rank $ k $. Then
+$$ \#\cbr{L \le M \st \rk_{\ZZ / p^e} L = l, \ N \le L} = \binom{m - k}{l - k}_{p^e}. $$
+\end{corollary}
+
+\begin{proof}
+This follows immediately from Corollary \ref{cor:freequotient} and Proposition \ref{prop:dimensionsummand}.
+\end{proof}
+
+Now are several results on metabolic quadratic $ \ZZ / p^e $-modules and Lagrangian direct summands.
+
+\begin{lemma}
+\label{lem:summandrank}
+Let $ M $ be a quadratic $ \ZZ / p^e $-module of rank $ m $, and let $ N \le M $ be totally isotropic direct summand of rank $ k $. Then $ N^\perp $ is a free $ \ZZ / p^e $-module of rank $ m - k $.
+\end{lemma}
+
+\begin{proof}
+Composing the pairing isomorphism $ M \xrightarrow{\sim} M^\star $ and the map $ M^\star \to N^\star $ dual to the inclusion map $ N \hookrightarrow{M} $ furnishes a short exact sequence of $ \ZZ / p^e $-modules
+$$ 0 \to N^\perp \to M \to N^\star \to 0, $$
+where $ N^\perp $ fits into the sequence by definition. Since $ N^\star \cong N $ is a free of rank $ k $, it is projective, so the sequence splits as a direct sum decomposition $ M \cong N^\perp \oplus N^\star $. Thus $ N^\perp $ is projective over a local ring $ \ZZ / p^e $, and hence free of rank $ m - k $, again as a consequence of Nakayama's lemma.
+\end{proof}
+
+\begin{proposition}
+\label{prop:quotientcorrespondence}
+Let $ M $ be a metabolic quadratic $ \ZZ / p^e $-module of rank $ m $, let $ L \in \LG\br{M} $ be a Lagrangian direct summand, and let $ N \le M $ be a totally isotropic direct summand of rank $ k $. Then the free $ \ZZ / p^e $-module $ N^\perp / N $, equipped with the quadratic form
+$$ \function[\omega_{N^\perp / N}]{N^\perp / N}{\ZZ / p^e}{x + N}{\omega_M\br{x}}, $$
+is a metabolic quadratic $ \ZZ / p^e $-module of rank $ m - 2k $, with a Lagrangian direct summand $ \pi_N\br{L} $, where
+$$ \function[\pi_N]{\LG\br{M}}{\LG\br{N^\perp / N}}{L}{\br{L \cap N^\perp + N} / N}. $$
+Thus $ \pi_N : \LG\br{M} \to \LG\br{N^\perp / N} $ is surjective and induces a bijective correspondence of spaces
+$$ \bijection{\cbr{L \in \LG\br{M} \st N \le L}}{\LG\br{N^\perp / N}}{L}{L / N}. $$
+\end{proposition}
+
+\pagebreak
+
+\begin{proof}
+Assuming that the prior statements are true, the bijective correspondence follows immediately from Proposition \ref{prop:fourthisomorphism} and the construction of the quadratic form, while the freeness of $ N^\perp / N $ and its rank follows immediately from Corollary \ref{cor:freequotient} and Lemma \ref{lem:summandrank}. Now it remains to verify that the induced map $ \omega_{N^\perp / N} : N^\perp / N \to \ZZ / p^e $ is well-defined, that it is a non-degenerate quadratic form, and that the induced map $ \pi_N : \LG\br{M} \to \LG\br{N^\perp / N} $ is well-defined in the sense that $ \pi_N\br{L} $ is a Lagrangian direct summand, but all of these hold by construction through reducing the corresponding properties to $ M $ and noting the total isotropy of $ L = L^\perp $. For instance, whenever $ x, y \in N^\perp $ are elements such that $ x - y \in N $, then
+$$ \omega_{N^\perp / N}\br{x + N} = \omega_M\br{x} = \omega_M\br{x - y} + \omega_M\br{y} = \omega_M\br{y} = \omega_{N^\perp / N}\br{y + N}, $$
+by the definition of orthogonal complements, so $ \omega_{N^\perp / N} $ is well-defined.
+\end{proof}
+
+\begin{remark}
+The same statement is clearly also true for any choice of quadratic form.
+\end{remark}
+
+\begin{corollary}
+\label{cor:lagrangianrank}
+Let $ M $ be a quadratic $ \ZZ / p^e $-module of rank $ m $, and let $ L \in \LG\br{M} $ be a Lagrangian direct summand. Then $ m $ is even, and $ L $ is a free $ \ZZ / p^e $-module of rank $ \tfrac{1}{2}m $.
+\end{corollary}
+
+\begin{proof}
+This follows immediately from Lemma \ref{lem:summandrank} and the maximality of $ L $.
+\end{proof}
+
+\subsection{Sizes of Lagrangian Grassmannians}
+
+The aim of this subsection will be to compute the size of the Lagrangian Grassmannian $ \LG\br{\ZZ / p^e}^{2n} $, with detailed calculations on the particular case of $ \LG\br{\FF_p}^{2n} $. In the latter case, the $ \FF_p $-module of rank $ 2n $ becomes synonymous to the $ 2n $-dimensional $ \FF_p $-vector space, and all submodules, or simply referred to as subspaces, are trivially free direct summands, so computations are easier. The proof will be a slightly long-winded induction, where the base case is $ n = 1 $ and can be counted by explicit elimination.
+
+\begin{proposition}
+\label{prop:lagrangianbase}
+$$ \#\LG\br{\FF_p}^2 = 2. $$
+\end{proposition}
+
+\begin{proof}
+Let $ L \subseteq \FF_p^2 $ be a Lagrangian subspace, and let $ \br{x_1, x_2} \in \FF_p^2 $ and $ \br{y_1, y_2} \in L $ be two arbitrary vectors. The condition that $ \abr{\br{x_1, x_2}, \br{y_1, y_2}}_{\FF_p^{2n}} = 0 $ is simply $ \br{x_1 + y_1}\br{x_2 + y_2} = x_1x_2 + y_1y_2 $, which is equivalent to $ x_1y_2 + y_1x_2 = 0 $, and this holds for all vectors $ \br{x_1, x_2} \in \FF_p^2 $. Since $ y_1y_2 = 0 $ for all vectors $ \br{y_1, y_2} \in L $ by total isotropy, there are only two distinct possibilities for the one-dimensional Lagrangian subspace $ L $, namely one where all $ x_1 = y_1 = 0 $ and another where all $ x_2 = y_2 = 0 $.
+\end{proof}
+
+By the surjection $ \pi_N : \LG\br{M} \to \LG\br{N^\perp / N} $, any Lagrangian direct summand of $ N^\perp / N $ for a totally isotropic direct summand $ N \le M $ is of the form $ \pi_N\br{L} \in \LG\br{N^\perp / N} $ for a non-unique Lagrangian direct summand $ L \in \LG\br{M} $. Yet this map is nowhere injective, and its fibre is constant and readily computed in the relevant case of $ M = \FF_p^{2n} $ through first establishing a bijective correspondence.
+
+\begin{lemma}
+\label{lem:lagrangianfibre}
+Let $ N \subseteq \FF_p^{2n} $ be a one-dimensional subspace, and let $ \pi_N\br{L} \in \LG\br{N^\perp / N} $ be a Lagrangian subspace for some Lagrangian subspace $ L \in \LG\br{\FF_p}^{2n} $. Then there is a bijective correspondence of spaces
+$$ \bijection{\cbr{L' \in \LG\br{\FF_p}^{2n} \st \pi_N\br{L'} = \pi_N\br{L}}}{\cbr{N' \subseteq L \st \dim N' = n - 1, \ N \not\subseteq N'} \cup \cbr{L}}{L'}{L' \cap L}. $$
+\end{lemma}
+
+\begin{proof}
+To check that the map is well-defined, first consider the case where $ N \subseteq L' $, which in turn bijectively corresponds to $ L $ and hence $ L' \cap L = L $, so it suffices to consider the case where $ N \not\subseteq L' $. If $ x \in L' \cap N^\perp $, then $ x + N \in \br{L' \cap N^\perp + N} / N = \pi_N\br{L'} = \pi_N\br{L} = L / N $, so $ x \in L $ and hence $ L' \cap N^\perp \subseteq L \subseteq N^\perp $, where the latter inclusion is by total isotropy. The second isomorphism theorem gives an isomorphism of groups
+$$ \br{L' \cap N^\perp + N} / N \cong \br{L' \cap N^\perp} / \br{L' \cap N^\perp \cap N} \cong L' \cap N^\perp, $$
+the latter isomorphism of which follows by $ L' \cap N = \emptyset $. Then
+$$ \dim_{\FF_p} \br{L' \cap L} = \dim_{\FF_p} \br{L' \cap N^\perp} = \dim_{\FF_p} \pi_N\br{L'} = \dim_{\FF_p} \pi_N\br{L} = \dim_{\FF_p} \br{L / N} = n - 1, $$
+
+\pagebreak
+
+\noindent
+where the last equality follows from Corollary \ref{cor:lagrangianrank} and dimension subtraction, so the map is well-defined. Now to obtain the bijective correspondence, it suffices to show that any $ \br{n - 1} $-dimensional subspace $ N' \subseteq L $ not containing $ N $ is contained in a unique Lagrangian subspace $ L' \in \LG\br{\FF_p}^{2n} $ such that $ \pi_N\br{L'} = \pi_N\br{L} $ and $ L \ne L' $. Applying Proposition \ref{prop:quotientcorrespondence} again establishes a bijective correspondence of spaces
+$$ \bijection{\cbr{L' \in \LG\br{\FF_p}^{2n} \st N' \subseteq L'}}{\LG\br{N'^\perp / N'}}{L'}{L' / N'}, $$
+but $ N'^\perp / N' $ is a two-dimensional $ \FF_p $-vector space equipped with a quadratic form induced by $ \FF_p^{2n} $, so has exactly two Lagrangian subspaces by Proposition \ref{prop:lagrangianbase}, one of which is the Lagrangian subspace $ L / N' \in \LG\br{N'^\perp / N'} $. Thus the remaining Lagrangian subspace $ L' / N' \in \LG\br{N'^\perp / N'} $ uniquely satisfies $ \pi_N\br{L'} = \pi_N\br{L} $ and maps to $ L' \cap L = N' $ by construction, so the bijective correspondence follows.
+\end{proof}
+
+The fibre of $ \pi_N : \LG\br{M} \to \LG\br{N^\perp / N} $ is exactly the left set in the bijective correspondence, so it remains to count the cardinality of the right set, which is an easy consequence of previous results.
+
+\begin{corollary}
+\label{cor:lagrangianinductive}
+Let $ N \subseteq \FF_p^{2n} $ be a one-dimensional subspace, and let $ \pi_N\br{L} \in \LG\br{N^\perp / N} $ be a Lagrangian subspace for some Lagrangian subspace $ L \in \LG\br{\FF_p}^{2n} $. Then
+$$ \#\pi_N^{-1}\br{\pi_N\br{L}} = p^{n - 1} + 1. $$
+\end{corollary}
+
+\begin{proof}
+With the bijective correspondence in Lemma \ref{lem:lagrangianfibre}, it remains to count the number of $ \br{n - 1} $-dimensional subspaces of $ L $ that does not contain $ N $, but Corollary \ref{cor:dimensioncontainment} computes this to be exactly
+$$ \binom{n}{n - 1}_p - \binom{n - 1}{n - 2}_p = \prod_{i = 0}^{n - 2} \dfrac{p^n - p^i}{p^{n - 1} - p^i} - \prod_{i = 0}^{n - 3} \dfrac{p^{n - 1} - p^i}{p^{n - 2} - p^i} = \dfrac{\br{p^n - 1}p^{n - 2}}{p^{n - 1} - p^{n - 2}} - \dfrac{\br{p^{n - 1} - 1}p^{n - 3}}{p^{n - 2} - p^{n - 3}} = p^{n - 1}. $$
+Thus the result follows after including the singleton $ \cbr{L} $ in the bijective correspondence.
+\end{proof}
+
+Computing the size of $ \LG\br{\FF_p}^{2n} $ is then a simple matter of induction from Corollary \ref{cor:lagrangianinductive}.
+
+\begin{proposition}
+\label{prop:lagrangianfield}
+$$ \#\LG\br{\FF_p}^{2n} = \prod_{i = 0}^{n - 1} \br{p^i + 1}. $$
+\end{proposition}
+
+\begin{proof}
+The base case is Proposition \ref{prop:lagrangianbase}, so assume the result for $ n - 1 $. Then taking a one-dimensional subspace $ N \subseteq \FF_p^{2n} $ and considering the quotient $ N^\perp / N $ reduces to the inductive hypothesis, after which there are exactly $ p^{n - 1} + 1 $ distinct choices for $ N $ that map to the same Lagrangian subspace in $ \FF_p^{2\br{n - 1}} $ by Corollary \ref{cor:lagrangianinductive}. Thus the result for $ n $ follows from multiplying $ p^{n - 1} + 1 $ by the result for $ n - 1 $.
+\end{proof}
+
+There are several ways to extend Proposition \ref{prop:lagrangianfield} to $ M = \br{\ZZ / p^e}^{2n} $, one of which simply involves meticulously tracing the computations in this subsection to the general case, taking into account subtle corrections in the presence of zero divisors, and reusing the general results proven in the previous subsection. For the sake of brevity, the final result will just be stated. Note that the formula above can be rewritten as
+$$ \#\LG\br{\FF_p}^{2n} = \prod_{i = 0}^{n - 1} \br{p^i + 1} = \prod_{i = 0}^{n - 1} p^i\prod_{i = 0}^{n - 1} \br{1 + p^{-i}} = p^{\sum_{i = 0}^{n - 1} i}\prod_{i = 1 - n}^0 \br{1 + p^i} = p^{\frac{1}{2}n\br{n - 1}}\prod_{i = 1}^n \br{1 + p^{i - n}}, $$
+which ties in directly with the formula below.
+
+\begin{proposition}
+\label{prop:lagrangianring}
+$$ \#\LG\br{\ZZ / p^e}^{2n} = p^{\frac{1}{2}en\br{n - 1}}\prod_{i = 1}^n \br{1 + p^{i - n}}. $$
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Obtain $ \ZZ / p^e $ analogues of results in this subsection using results in the previous subsection.
+\end{proof}
+
+\begin{remark}
+A fancier approach to deduce the general result is to realise the Lagrangian Grassmannian as a projective scheme over $ \ZZ $ that is smooth of relative dimension $ \tfrac{1}{2}n\br{n - 1} $ \cite[Lemma 4.8]{BKLPR15}. Via a generalisation of Hensel's lemma, each Lagrangian Grassmannian over $ \FF_p $ can be lifted to one over $ \ZZ / p^e $ by smoothness, while the relative dimension dictates the sizes of each fibre.
+\end{remark}
+
+\pagebreak
+
+\subsection{Average sizes of Selmer groups}
+
+This subsection finishes the proof that the intersection of two Lagrangian direct summands chosen uniformly at random from $ \LG\br{\ZZ / p^e}^{2n} $ has average size equal to the sum of divisors of $ p^e $, hence providing a heuristic model for the average size of $ p^e $-Selmer groups. This is achieved through probing the size of an intersection by counting the number of possible monomorphisms of $ \ZZ / p^e $-modules into it. First define the finite set
+$$ \Hom_R^{\hookrightarrow}\br{M} \coloneqq \cbr{\phi \in \Hom_R\br{R, M} \st \phi : R \hookrightarrow M}. $$
+
+\begin{lemma}
+\label{lem:monomorphismnumber}
+Let $ M $ be a free $ \ZZ / p^e $-module of rank $ m $. Then
+$$ \#\Hom_{\ZZ / p^e}^{\hookrightarrow}\br{M} = p^{em} - p^{\br{e - 1}m}. $$
+\end{lemma}
+
+\begin{proof}
+A monomorphism $ \ZZ / p^e \hookrightarrow M $ is uniquely determined by an element of $ M $ with order exactly $ p^e $. Each component has $ \Phi\br{p^e} = p^{e - 1}\br{p - 1} $ elements of $ \ZZ / p^e $ that induce elements of $ M $ with order exactly $ p^e $, so there are $ p^e - p^{e - 1}\br{p - 1} = p^{e - 1} $ elements of $ \ZZ / p^e $ that induce elements of $ M $ with order strictly less than $ p^e $ in each component. Thus, considering all components and subtracting this from the total number of elements of $ M $, the desired number of monomorphisms $ \ZZ / p^e \hookrightarrow M $ is $ \br{p^e}^m - \br{p^{e - 1}}^m = p^{em} - p^{\br{e - 1}m} $.
+\end{proof}
+
+It is also possible to compute the proportion of monomorphisms $ \ZZ / p^e \hookrightarrow M $ that land in a particular submodule of $ M $, albeit with some tedious calculations. Instead, if the rank of $ M $ will eventually be made to tend to infinity, the same computations can be heavily simplified with a limiting probabilistic argument.
+
+\begin{proposition}
+\label{prop:averagesummand}
+Let $ L_1, L_2 \in \LG\br{\ZZ / p^e}^{2n} $ be Lagrangian direct summands chosen uniformly at random. Then
+$$ \lim_{n \to \infty} \EE\sbr{\#\Hom_{\ZZ / p^e}^{\hookrightarrow}\br{L_1 \cap L_2}} = p^e. $$
+\end{proposition}
+
+\begin{proof}
+With $ n $ tending to infinity in mind, the desired limiting average is simply the number of monomorphisms $ \ZZ / p^e \hookrightarrow L_1 $, multiplied by the probability that a randomly chosen Lagrangian direct summand $ L_2 \in \LG\br{\ZZ / p^e}^{2n} $ contains the image of some monomorphism of $ \ZZ / p^e $-modules $ \phi : \ZZ / p^e \hookrightarrow L_1 $, the result of which may or may not be an integer. The former number is exactly $ p^{en} - p^{\br{e - 1}n} $ by Corollary \ref{cor:lagrangianrank} and Lemma \ref{lem:monomorphismnumber}, while the latter probability, by the bijective correspondence in Proposition \ref{prop:quotientcorrespondence}, is exactly the proportion of $ \LG\br{\im \phi^\perp / \im \phi} $ as a space living inside $ \LG\br{\ZZ / p^e}^{2n} $. The construction of the metabolic quadratic $ \ZZ / p^e $-module $ \im \phi^\perp / \im \phi $ ensures that it is a free $ \ZZ / p^e $-module of rank $ 2n - 2 $ that is isomorphic to $ \br{\ZZ / p^e}^{2n - 2} $, so Proposition \ref{prop:lagrangianring} computes the final probability to be
+$$ \dfrac{\#\LG\br{\ZZ / p^e}^{2n - 2}}{\#\LG\br{\ZZ / p^e}^{2n}} = \dfrac{p^{\frac{1}{2}e\br{n - 1}\br{n - 2}}\prod_{i = 1}^{n - 1} \br{1 + p^{i - n + 1}}}{p^{\frac{1}{2}en\br{n - 1}}\prod_{i = 1}^n \br{1 + p^{i - n}}} = p^{e\br{1 - n}}\br{1 + p^{1 - n}}. $$
+Thus multiplying both quantities yields
+$$ \EE\sbr{\#\Hom_{\ZZ / p^e}^{\hookrightarrow}\br{L_1 \cap L_2}} \to \br{p^{en} - p^{\br{e - 1}n}}\br{p^{e\br{1 - n}}\br{1 + p^{1 - n}}} = p^e + p^{e + 1 - n} - p^{e - n} - p^{e + 1 - 2n}, $$
+which clearly tends to $ p^e $ as $ n $ tends to infinity.
+\end{proof}
+
+The main result of this section can now be proven with a simple telescoping argument.
+
+\begin{proof}[Proof of Theorem \ref{thm:main2}]
+As per a previous argument, a monomorphism $ \ZZ / p^e \hookrightarrow L_1 \cap L_2 $ is uniquely determined by an element of $ L_1 \cap L_2 $ with order exactly $ p^e $, but there are exactly $ \#\br{L_1 \cap L_2} - \#\br{L_1 \cap L_2}\sbr{p^{e - 1}} $ such elements, and Proposition \ref{prop:averagesummand} shows that the limiting average of this quantity is $ p^e $. Now observe that $ \br{L_1 \cap L_2}\sbr{p^d} $ is also $ \ZZ / p^d $-module for any $ d \le e $, so the same principle applies to compute the limiting average number of monomorphisms $ \ZZ / p^d \hookrightarrow \br{L_1 \cap L_2}\sbr{p^d} $ to be $ p^d $. Thus, as $ n $ tends to infinity,
+$$ \EE\sbr{\#\br{L_1 \cap L_2}} = \sum_{d = 0}^e \EE\sbr{\#\br{L_1 \cap L_2}\sbr{p^d} - \#\br{L_1 \cap L_2}\sbr{p^{d - 1}}} \to \sum_{d = 0}^e p^d, $$
+which is exactly the sum of divisors of $ p^e $.
+\end{proof}
+
+\pagebreak
+
+\begin{remark}
+With a further inclusion-exclusion argument, given another free $ \ZZ / p^e $-module $ N $ of rank $ k $, it is easy to compute the number of monomorphisms $ N \hookrightarrow M $ in terms of $ m $ and $ k $ \cite[Theorem 5.10]{BKLPR15}. On the other hand, it is more noteworthy that this is always a finite value, so that when $ M $ is randomly sampled, such as the case of $ L_1 \cap L_2 $, this implies that the limiting $ k $-th moment for $ \#M $ is bounded. As such, under the assumption that $ L_1 \cap L_2 $ does indeed model $ \Sel[p^e] $ for an elliptic curve $ E $ defined over a number field $ K $, and assuming the conjecture that the limiting moments of $ \#\Sel[p^e] $ are also bounded, this yields the actual average number of monomorphisms of $ N $ into $ \Sel[p^e] $ \cite[Remark 5.13]{BKLPR15}. This in turn provides a method of computing the higher moments of $ \#\Sel[p^e] $, including its actual average.
+\end{remark}
+
+\subsection{Freeness of the ambient module}
+
+This final short subsection identifies an important issue of the model with regards to the ambient module. In particular, the construction of the free ambient module $ \br{\ZZ / p^e}^{2n} $ in this subsection implicitly assumes that the ambient module $ \HE[p^e]{\AA_K} $ in the previous subsection is free, although it is almost never the case.
+
+\begin{proposition}
+Let $ e > 2 $. Then $ \HE[p^e]{\AA_K} $ is not free for almost all elliptic curves $ E \in \EEE\br{K} $.
+\end{proposition}
+
+\begin{proof}
+It suffices to show, for almost all elliptic curves $ E \in \EEE\br{K} $, that $ \En[p^e]{K_v} $ is not a free $ \ZZ / p^e $-module for some place $ v \in \VVV_K $, since it is a direct summand of $ \HE[p^e]{K_v} $, by Proposition \ref{prop:localsummand}, and hence of $ \HE[p^e]{\AA_K} $. Proposition \ref{prop:galoisrepresentation} yields the surjectivity of modulo $ p^e $ Galois representations for almost all elliptic curves $ E \in \EEE\br{K} $, so for any such elliptic curve, there is an automorphism $ \sigma \in \AG{K} $ such that
+$$ \rho_{E\sbr{p^e}}\br{\sigma} = \twobytwo{p + 1}{0}{0}{p + 1}. $$
+By Chebotarev's density theorem, $ \sigma $ corresponds to a Frobenius substitution $ \sigma_w \in \AG{K} $ of a non-archimedean place $ w \in \VVV_{\overline{K}}^0 $ extending some non-archimedean place $ v \in \VVV_K^0 $. The $ \AG{K_v} $-action on $ E\sbr{p^e} $ is governed by $ \rho_{E\sbr{p^e}}\br{\sigma} $, so its invariant subgroup $ E\br{K_v}\sbr{p^e} $ consists of precisely the elements in $ \br{\ZZ / p^e}^2 $ annihilated by $ p $, which is exactly $ \FF_p^2 $. Now the first isomorphism theorem equates the cardinalities of the finite groups $ \En[p^e]{K_v} $ and $ E\br{K_v}\sbr{p^e} \cong \FF_p^2 $, so the former cannot be a free $ \ZZ / p^e $-module.
+\end{proof}
+
+\begin{remark}
+The same is also true for $ e = 2 $ using a similar argument by checking cases, or alternatively noting that $ E\br{K_v}\sbr{p^e} $ is a direct summand of $ E\br{K_v} $ \cite[Proposition 6.13]{BKLPR15}.
+\end{remark}
+
+In spite of this drawback, it is heuristically expected that the consequences induced by the model continue to hold due to its compatibility with known results and conjectures, while a potentially more complicated linear algebraic model incorporating freeness of the ambient module remains open-ended.
+
+\pagebreak
+
+\chapter{Heuristic consequences}
+
+This final chapter briefly presents several consequences, assuming that the $ p^e $-Selmer group is indeed modelled by the intersection of two Lagrangian direct summands chosen uniformly at random from $ \LG\br{\ZZ / p^e}^{2m} $ when $ m $ tends to infinity, as in the previous chapter. In what follows, the arguments will mostly be presented without proof, and their details will be deferred to the paper on modelling distributions of elliptic curves by Bhargava, Kane, Lenstra, Poonen, and Rains \cite{BKLPR15} and to the paper on boundedness of ranks of elliptic curves by Park, Poonen, Voight, and Wood \cite{PPVW19}. Throughout this chapter, let $ E $ be an elliptic curve defined over a number field $ K $, let $ m, n \in \NN^+ $ be arbitrary, and let $ p^e \in \NN^+ $ be a prime power.
+
+\section{Modelling short exact sequences}
+
+Despite Theorem \ref{thm:main1} presenting only the case of $ p^e $-Selmer groups, general $ n $-Selmer groups behave well under $ p^e $-torsion subgroups, in the sense that for almost all elliptic curves $ E \in \EEE\br{K} $,
+$$ \Sel[n]\sbr{p^e} \cong \Sel[p^e], \qquad p^e \mid n, $$
+a purely cohomological result relying on the fact that almost all elliptic curves have trivial torsion subgroups \cite[Proposition 5.9]{BKLPR15}. As such, a general $ n $-Selmer group is built up from gluing $ p^e $-Selmer groups in some fashion, each of which modelled by intersecting two Lagrangian direct summands in $ \LG\br{\ZZ / p^e}^{2m} $. One may then wonder if the tempting analogue of Theorem \ref{thm:main2} holds for $ L_1, L_2 \in \LG\br{\ZZ / n}^{2m} $, namely if
+$$ \lim_{m \to \infty} \EE\sbr{\#\br{L_1 \cap L_2}} = \sigma_1\br{n}, $$
+where $ \sigma_1 : \NN^+ \to \NN $ is the sum of divisors function, since this would affirm Conjecture \ref{con:main} under appropriately bounded second moments. While it may be possible to prove this by considering each $ \br{L_1 \cap L_2}\sbr{p^e} $ and using the multiplicativity of $ \sigma_1 $, deriving properties of $ \ZZ / n $-modules analogous to those in the previous chapter would pose a significant challenge, especially in the size computation of $ \LG\br{\ZZ / n}^{2m} $.
+
+Instead, a viable alternative model based on short exact sequences can be constructed as follows. Take the direct limit of multiplication by $ p $ maps over all prime powers $ n = p^e $, and denote $ \Sel[p^\infty] \coloneqq \varinjlim_e \Sel[p^e] $. There is a fundamental short exact sequence of abelian groups
+\begin{equation}
+\label{eq:1}
+0 \to E\br{K} \otimes \QQ_p / \ZZ_p \to \Sel[p^\infty] \to \Sha\sbr{p^\infty} \to 0,
+\end{equation}
+and each of these can be endowed with the structure of a $ \ZZ_p $-module. Now for two arbitrary Lagrangian direct summands $ L_1, L_2 \in \LG\br{\ZZ_p}^{2m} $, construct three $ \ZZ_p $-modules by
+$$ R \coloneqq \br{L_1 \cap L_2} \otimes_{\ZZ_p} \QQ_p / \ZZ_p, \qquad S \coloneqq \br{L_1 \otimes_{\ZZ_p} \QQ_p / \ZZ_p} \cap \br{L_2 \otimes_{\ZZ_p} \QQ_p / \ZZ_p}, \qquad T \coloneqq S / R. $$
+These fit in a split short exact sequence of $ \ZZ_p $-modules \cite[Corollary 5.3]{BKLPR15}
+\begin{equation}
+\label{eq:2}
+0 \to R \to S \to T \to 0,
+\end{equation}
+which all have finitely generated Pontryagin duals.
+
+\pagebreak
+
+As remarked previously, it turns out that one can define a canonical measure on $ \LG\br{\ZZ_p}^{2m} $ that restricts to a uniform measure on each $ \LG\br{\ZZ / p^e}^{2m} $, so that choosing $ L_1, L_2 \in \LG\br{\ZZ_p}^{2m} $ uniformly at random induces a discrete probability distribution on the set of isomorphism classes of short exact sequences of $ \ZZ_p $-modules whose Pontryagin duals are finitely generated, which converges when $ m $ tends to infinity \cite[Theorem 1.2]{BKLPR15}. Thus $ \br{\ref{eq:2}} $ would supply a conjectural model for $ \br{\ref{eq:1}} $ \cite[Conjecture 1.3]{BKLPR15}, and the distributions of the Mordell-Weil rank $ \rkE $, the $ p^\infty $-Selmer group $ \Sel[p^\infty] $, and the $ p $-primary component of the Tate-Shafarevich group $ \Sha\sbr{p^\infty} $ can be modelled simultaneously.
+
+It then remains to justify the construction of this model. Amongst other desirable consequences, the truthfulness of this model is heuristically supported by various evidence.
+\begin{itemize}
+\item There is an isomorphism of abelian groups $ R \cong \br{\QQ_p / \ZZ_p}^{\rkE} $, while the same is true for $ E\br{K} \otimes \QQ_p / \ZZ_p $ by the Mordell-Weil theorem. Moreover, by splitting $ \LG\br{\ZZ_p}^{2m} $ into spaces of Lagrangian Grassmannians with odd or even dimensions \cite[Proposition 4.5]{BKLPR15} and computing the dimensions of Schubert subschemes \cite[Proposition 4.9]{BKLPR15}, the model would also affirm the rank distribution conjecture that $ \delta\br{\rkE = 0} = \delta\br{\rkE = 1} = \tfrac{1}{2} $ \cite[Proposition 5.6]{BKLPR15}.
+\item The construction of $ S $ mirrors the model for all $ \Sel[p^e] $ simultaneously. Moreover, due to the isomorphisms $ \Sel[p^\infty]\sbr{p^e} \cong \Sel[p^e] $ and $ S\sbr{p^e} \cong \br{L_1 / p^e} \cap \br{L_2 / p^e} $ \cite[Proposition 5.4]{BKLPR15}, the distribution of $ \Sel[p^e] $ would coincide with the limiting distribution of $ L_1 \cap L_2 $ for each $ p^e $.
+\item The finiteness of $ T $ \cite[Corollary 5.2]{BKLPR15} would imply the finiteness of $ \Sha\sbr{p^\infty} $, at least for almost all elliptic curves $ E \in \EEE\br{K} $, and this is part of the Tate-Shafarevich conjecture. Moreover, $ T $ can be equipped with a natural non-degenerate alternating $ \ZZ $-bilinear pairing \cite[Proposition 5.5]{BKLPR15}, which mirrors the Cassels-Tate pairing on $ \Sha\sbr{p^\infty} $.
+\end{itemize}
+Assuming its truthfulness, however, a plausible model for a general $ n $-Selmer group
+\begin{equation}
+\label{eq:3}
+\Sel[n] \cong \bigoplus_p \Sel[p^\infty]\sbr{p^{\ord_p n}},
+\end{equation}
+which is ideally obtained from $ S $, still requires an understanding of the behaviour of $ R $ and $ T $.
+
+\section{Modelling Tate-Shafarevich groups}
+
+The rank distribution conjecture predicts that $ \delta\br{\rkE \ge 2} = 0 $, which is reflected in this model in such a way that, if $ L_1, L_2 \in \LG\br{\ZZ_p}^{2m} $ were Lagrangian direct summands chosen uniformly at random, the set
+$$ \LG_r^m \coloneqq \cbr{\br{L_1, L_2} \in \br{\LG\br{\ZZ_p}^{2m}}^2 \st \rk_{\ZZ_p} \br{L_1 \cap L_2} = r} $$
+would have measure zero for any fixed $ r \in \NN_{\ge 2} $. Unfortunately, this means that the induced distribution of $ T $, and hence of $ \Sha\sbr{p^\infty} $, where $ E \in \EEE\br{K} $ is sampled with the condition $ \rkE = r $, cannot be predicted. There are at least three proposed workarounds to this, outlined as follows.
+\begin{itemize}
+\item Choose a tuple $ \br{L_1, L_2} $ uniformly at random directly from the set $ \LG_r^m $, which carries a product measure induced by $ \LG\br{\ZZ_p}^{2m} $. This induces a natural discrete probability distribution on the set of isomorphism classes of $ T $, which converges when $ m $ tends to infinity \cite[Theorem 1.6]{BKLPR15}.
+\item In accordance with Delaunay's interpretation of the Cohen-Lenstra heuristics for ideal class groups, consider the set of all \textbf{symplectic $ p $-groups}, finite abelian groups $ G $ of orders powers of $ p $ and equipped with a non-degenerate alternating pairing $ G \times G \to \QQ_p / \ZZ_p $, and identify them up to isomorphisms respecting the pairing. Define a probability distribution on this set by
+$$ \Prob G \coloneqq \dfrac{\br{\#G}^{1 - r}}{\#\Aut G}\prod_{i > r} \br{1 - p^{1 - 2i}}, $$
+where $ \Aut G $ denotes the group of automorphisms of $ G $ respecting the symplectic structure. This generalises Delaunay's distributions to elliptic curves of rank $ r $ \cite[Section 5.6]{BKLPR15}.
+
+\pagebreak
+
+\item Choose a matrix $ M $ uniformly at random from the space of matrices
+$$ \Mat_r^m \coloneqq \cbr{M \in \Mat_m \ZZ_p \st M^\intercal = -M, \ \rk_{\ZZ_p} \br{\ker M} = r}, \qquad m \equiv r \mod 2, $$
+which also carries a Haar-like measure as a $ \ZZ_p $-scheme of finite type. This induces a probability distribution on the set of isomorphism classes of $ \br{\coker M}_{\tors} $, which converges when $ m \equiv r \mod 2 $ tends to infinity \cite[Theorem 1.10]{BKLPR15}. Furthermore, $ \br{\coker M}_{\tors} $ can also be equipped with a non-degenerate alternating pairing \cite[Section 3.5]{BKLPR15}, making it a symplectic $ p $-group. It is worth noting that the construction is inspired by, and analogous to, the Friedman-Washington interpretation of the Cohen-Lenstra heuristics for ideal class groups \cite[Remark 1.11]{BKLPR15}.
+\end{itemize}
+It turns out that all three distributions coincide \cite[Theorems 1.6(c) and 1.10(b)]{BKLPR15}, establishing a new model for $ T $ via isomorphism classes of symplectic $ p $-groups compatible with the short exact sequence.
+
+All of the above discussion culminates in a model for a general $ n $-Selmer group defined as follows. Since the three distributions for $ T $ are now conditioned on $ \rkE = r $, and the original model for $ T $ distributes $ r $ uniformly amongst $ \cbr{0, 1} $, choose $ r \in \cbr{0, 1} $ uniformly at random. Choose a symplectic $ p $-group $ T_p $ at random for each prime $ p \in \NN^+ $ using any of the three distributions, and define
+\begin{equation}
+\label{eq:4}
+S_n \coloneqq \br{\ZZ / n}^r \oplus \br{\bigoplus_p T_p}\sbr{n}.
+\end{equation}
+Then $ \br{\ref{eq:4}} $ would precisely model $ \br{\ref{eq:3}} $, and by the previous chapter, this would affirm Conjecture \ref{con:main} \cite[Section 5.7]{BKLPR15}, noting that the $ p $-primary components of $ S_n $ are independent for distinct primes $ p $.
+
+\section{Modelling Mordell-Weil ranks}
+
+Coincidentally, the third distribution above also suggests a model for the Mordell-Weil rank. Since conditioning on $ r $ yields a distribution with the prescribed Mordell-Weil rank, removing this condition would ideally cause $ r $ to be distributed like the Mordell-Weil rank instead. This cannot be literally true, since an alternating matrix always has even rank and $ m \equiv r \mod 2 $. Furthermore, due to a similar measure zero issue for $ r \ge 2 $, this distribution cannot predict the relative frequencies of higher Mordell-Weil ranks.
+
+Rather, a model can be constructed such that $ m $ is sampled uniformly from odd and even natural numbers, and $ M $ is sampled from a subspace of matrices with entries bounded by a constant. Letting both sampling processes depend on an appropriate notion of height of the elliptic curve to be modelled, the refined model would solve both issues and provide a conjectural distribution for the Mordell-Weil rank. In particular, the model for an elliptic curve of height $ h \in \NN $ is proposed as follows.
+\begin{itemize}
+\item Choose functions $ X : \NN \to \RR $ and $ Y : \NN \to \RR $ such that $ X\br{x}^{Y\br{x}} = x^{1 / 12 + \o\br{1}} $ as $ x \to \infty $.
+\item Choose $ m $ uniformly at random from $ \cbr{\lbr{Y\br{h}}, \lbr{Y\br{h}} + 1} $.
+\item Choose $ M $ uniformly at random from $ \Mat_m \ZZ $ such that $ M^\intercal = -M $ with entries bounded by $ X\br{h} $.
+\end{itemize}
+The choice of condition for the functions here is made with significant arithmetic justification, namely the expectation that the average size of the Tate-Shafarevich group of elliptic curves of height $ h $ and rank zero is $ h^{1 / 12 + \o\br{1}} $, the proof of which is elided for brevity \cite[Theorem 6.4.2(c)]{PPVW19}. Further theoretical evidence to the validity of this model is the agreement with the three distributions above and the rank distribution conjecture \cite[Section 8.1]{PPVW19}, with much computational evidence as well \cite[Section 10.1]{PPVW19}.
+
+Using sieve-theoretic techniques, the construction culminates in a very surprising result, namely that all but finitely many elliptic curves $ E \in \EEE\br{\QQ} $, under a slightly different notion of heights, satisfy $ \rkE{\QQ} \le 21 $ \cite[Theorem 7.3.3(a)]{PPVW19}. This would mean that there is an upper bound to the Mordell-Weil rank of rational elliptic curves, which ultimately answers the rank boundedness conjecture in the affirmative.
+
+\pagebreak
+
+\printbibliography
+
+\end{document}
